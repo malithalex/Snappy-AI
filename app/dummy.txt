@@ -1,0 +1,2596 @@
+// import * as React from "react";
+// import {
+//   StyleSheet,
+//   Platform,
+//   View,
+//   SafeAreaView,
+//   StatusBar,
+//   TouchableHighlight,
+//   Linking,
+//   Text,
+// } from "react-native";
+// import {
+//   Camera,
+//   useCameraDevice,
+//   useCameraPermission,
+// } from "react-native-vision-camera";
+// import { Redirect, useRouter } from "expo-router";
+// import { ThemedText } from "@/components/ThemedText";
+// import ObscuraButton from "@/components/ObscuraButton";
+// import { FontAwesome5 } from "@expo/vector-icons";
+// import ZoomControls from "@/components/ZoomControls";
+// import { BlurView } from "expo-blur";
+// import ExposureControls from "@/components/ExposureControls";
+// import Animated, {
+//   useSharedValue,
+//   useAnimatedStyle,
+//   withTiming,
+//   interpolate,
+//   runOnJS,
+// } from "react-native-reanimated";
+// import { Gesture, GestureDetector } from "react-native-gesture-handler";
+// import { useWindowDimensions } from "react-native";
+// import { Colors } from "@/constants/Colors";
+
+// export default function HomeScreen() {
+//   const { hasPermission } = useCameraPermission();
+//   const microphonePermission = Camera.getMicrophonePermissionStatus();
+//   const [showZoomControls, setShowZoomControls] = React.useState(false);
+//   const [showExposureControls, setShowExposureControls] = React.useState(false);
+//   const [isNavBarVisible, setIsNavBarVisible] = React.useState(true);
+
+//   const camera = React.useRef<Camera>(null);
+//   const device = useCameraDevice("back");
+//   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">("back");
+//   const [zoom, setZoom] = React.useState(device?.neutralZoom || 1);
+//   const [exposure, setExposure] = React.useState(0);
+//   const [flash, setFlash] = React.useState<"off" | "on">("off");
+//   const [torch, setTorch] = React.useState<"off" | "on">("off");
+//   const redirectToPermissions = !hasPermission || microphonePermission === "not-determined";
+//   const router = useRouter();
+//   const { height } = useWindowDimensions();
+
+//   const navBarAnimation = useSharedValue(0);
+
+//   const takePicture = async () => {
+//     try {
+//       if (camera.current == null) throw new Error("Camera ref is null!");
+//       console.log("Taking photo...");
+//       const photo = await camera.current.takePhoto({
+//         flash: flash,
+//         enableShutterSound: false,
+//       });
+//       router.push({
+//         pathname: "/media",
+//         params: { media: photo.path, type: "photo" },
+//       });
+//     } catch (e) {
+//       console.error("Failed to take photo!", e);
+//     }
+//   };
+
+//   const navBarStyle = useAnimatedStyle(() => ({
+//     transform: [{
+//       translateY: interpolate(
+//         navBarAnimation.value,
+//         [0, 1],
+//         [0, height * 0.5]
+//       ),
+//     }],
+//   }));
+
+//   const panGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       const translationY = event.translationY;
+//       navBarAnimation.value = Math.max(0, Math.min(1, translationY / (height * 0.5)));
+//     })
+//     .onEnd(() => {
+//       if (navBarAnimation.value > 0.5) {
+//         navBarAnimation.value = withTiming(1, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(false);
+//       } else {
+//         navBarAnimation.value = withTiming(0, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(true);
+//       }
+//     });
+
+//   if (redirectToPermissions) return <Redirect href="/permissions" />;
+//   if (!device) return null;
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       {/* Camera with pointerEvents to allow gestures */}
+//       <View style={styles.cameraContainer} pointerEvents="box-none">
+//         <Camera
+//           ref={camera}
+//           style={StyleSheet.absoluteFill}
+//           photo={true}
+//           zoom={zoom}
+//           device={device}
+//           isActive={true}
+//           resizeMode="cover"
+//           preview={true}
+//           exposure={exposure}
+//           torch={torch}
+//         />
+//         <BlurView
+//           intensity={100}
+//           tint="dark"
+//           style={styles.infoOverlay}
+//         >
+//           <Text style={{ color: "white" }}>
+//             Exposure: {exposure} | Zoom: x{zoom}
+//           </Text>
+//         </BlurView>
+//       </View>
+
+//       {/* Overlay for ZoomControls */}
+//       {showZoomControls && (
+//         <View style={styles.overlay}>
+//           <ZoomControls
+//             setZoom={setZoom}
+//             setShowZoomControls={setShowZoomControls}
+//             zoom={zoom}
+//           />
+//         </View>
+//       )}
+
+//       {showExposureControls && (
+//         <View style={styles.overlay}>
+//           <ExposureControls
+//             setExposure={setExposure}
+//             setShowExposureControls={setShowExposureControls}
+//             exposure={exposure}
+//           />
+//         </View>
+//       )}
+//       <GestureDetector gesture={panGesture}>
+//           <Animated.View style={styles.swipeBar}>
+//             <View style={styles.handleBar} />
+//           </Animated.View>
+//         </GestureDetector>
+
+//       {/* Navigation Bar */}
+//       <Animated.View style={[styles.navBarContainer, navBarStyle]}>
+
+//         {!(showZoomControls || showExposureControls) && (
+//           <View style={{ flex: 1, padding: 10 }}>
+
+//             <View style={styles.topSection}>
+
+//               <ThemedText>Max FPS: {device.formats[0].maxFps}</ThemedText>
+//               <ThemedText>
+//                 Width: {device.formats[0].photoWidth} Height: {device.formats[0].photoHeight}
+//               </ThemedText>
+//               <ThemedText>Camera: {device.name}</ThemedText>
+//             </View>
+//             <View style={styles.middleSection}>
+//               <ObscuraButton
+//                 iconName={torch === "on" ? "flashlight" : "flashlight-outline"}
+//                 onPress={() => setTorch((t) => (t === "off" ? "on" : "off"))}
+//               />
+//               <ObscuraButton
+//                 iconName={flash === "on" ? "flash-outline" : "flash-off-outline"}
+//                 onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+//               />
+//               <ObscuraButton
+//                 iconName="camera-reverse-outline"
+//                 onPress={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
+//               />
+//               <ObscuraButton
+//                 iconName="image-outline"
+//                 onPress={() => {
+//                   const link = Platform.select({
+//                     ios: "photos-redirect://",
+//                     android: "content://media/external/images/media",
+//                   });
+//                   Linking.openURL(link!);
+//                 }}
+//               />
+//               <ObscuraButton
+//                 iconName="settings-outline"
+//                 onPress={() => router.push("/_sitemap")}
+//               />
+//             </View>
+//             <View style={styles.bottomSection}>
+//               <ObscuraButton
+//                 iconSize={40}
+//                 title="+/-"
+//                 onPress={() => setShowZoomControls(true)}
+//               />
+//               <ObscuraButton
+//                 iconSize={40}
+//                 title="1x"
+//                 onPress={() => setShowExposureControls(true)}
+//               />
+//             </View>
+//           </View>
+//         )}
+//       </Animated.View>
+
+//       {/* Control Overlay */}
+//       <View style={styles.controlOverlay}>
+//         <TouchableHighlight onPress={takePicture} underlayColor="transparent">
+//           <FontAwesome5 name="dot-circle" size={50} color="white" />
+//         </TouchableHighlight>
+//         {/* <GestureDetector gesture={panGesture}>
+//           <Animated.View style={styles.swipeBar}>
+//             <View style={styles.handleBar} />
+//           </Animated.View>
+//         </GestureDetector> */}
+//       </View>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+//     backgroundColor: "transparent",
+//   },
+//   cameraContainer: {
+//     flex: 1,
+//     position: "absolute",
+//     top: 0,
+//     left: 0,
+//     right: 0,
+//     bottom: 0,
+//     zIndex: 0,
+//   },
+//   infoOverlay: {
+//     position: "absolute",
+//     bottom: 0,
+//     right: 0,
+//     padding: 10,
+//     zIndex: 1,
+//   },
+//   overlay: {
+//     ...StyleSheet.absoluteFillObject,
+//     zIndex: 20, // Above camera and nav bar
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   controlOverlay: {
+//     position: "absolute",
+//     bottom: 20,
+//     left: 0,
+//     right: 0,
+//     alignItems: "center",
+//     zIndex: 10,
+//     flexDirection: "column",
+//     justifyContent: "center",
+//   },
+//   swipeBar: {
+//     marginTop: 10,
+//     width: 60,
+//     height: 30,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     zIndex: 11,
+//   },
+//   handleBar: {
+//     width: 40,
+//     height: 4,
+//     backgroundColor: "white",
+//     borderRadius: 2,
+//   },
+//   navBarContainer: {
+//     position: "absolute",
+//     bottom: 0,
+//     left: 0,
+//     right: 0,
+//     height: "50%",
+//     backgroundColor: "rgba(0,0,0,0.8)",
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     zIndex: 5,
+//   },
+//   topSection: { flex: 0.7, paddingTop: 10 },
+//   middleSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//   },
+//   bottomSection: {
+//     flex: 1.1,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//     alignItems: "center",
+//   },
+// });
+
+// import * as React from "react";
+// import {
+//   StyleSheet,
+//   Platform,
+//   View,
+//   SafeAreaView,
+//   StatusBar,
+//   TouchableHighlight,
+//   Linking,
+//   Text,
+// } from "react-native";
+// import {
+//   Camera,
+//   useCameraDevice,
+//   useCameraPermission,
+// } from "react-native-vision-camera";
+// import { Redirect, useRouter } from "expo-router";
+// import { ThemedText } from "@/components/ThemedText";
+// import ObscuraButton from "@/components/ObscuraButton";
+// import { FontAwesome5 } from "@expo/vector-icons";
+// import ZoomControls from "@/components/ZoomControls";
+// import { BlurView } from "expo-blur";
+// import ExposureControls from "@/components/ExposureControls";
+// import Animated, {
+//   useSharedValue,
+//   useAnimatedStyle,
+//   withTiming,
+//   interpolate,
+//   runOnJS,
+// } from "react-native-reanimated";
+// import { Gesture, GestureDetector } from "react-native-gesture-handler";
+// import { useWindowDimensions } from "react-native";
+
+// export default function HomeScreen() {
+//   const { hasPermission } = useCameraPermission();
+//   const microphonePermission = Camera.getMicrophonePermissionStatus();
+//   const [showZoomControls, setShowZoomControls] = React.useState(false);
+//   const [showExposureControls, setShowExposureControls] = React.useState(false);
+//   const [isNavBarVisible, setIsNavBarVisible] = React.useState(true);
+
+//   const camera = React.useRef<Camera>(null);
+//   const device = useCameraDevice("back");
+//   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">("back");
+//   const [zoom, setZoom] = React.useState(device?.neutralZoom || 1);
+//   const [exposure, setExposure] = React.useState(0);
+//   const [flash, setFlash] = React.useState<"off" | "on">("off");
+//   const [torch, setTorch] = React.useState<"off" | "on">("off");
+//   const redirectToPermissions = !hasPermission || microphonePermission === "not-determined";
+//   const router = useRouter();
+//   const { height, width } = useWindowDimensions();
+
+//   const navBarAnimation = useSharedValue(0);
+
+//   const takePicture = async () => {
+//     try {
+//       if (camera.current == null) throw new Error("Camera ref is null!");
+//       console.log("Taking photo...");
+//       const photo = await camera.current.takePhoto({
+//         flash: flash,
+//         enableShutterSound: false,
+//       });
+//       router.push({
+//         pathname: "/media",
+//         params: { media: photo.path, type: "photo" },
+//       });
+//     } catch (e) {
+//       console.error("Failed to take photo!", e);
+//     }
+//   };
+
+//   const navBarStyle = useAnimatedStyle(() => ({
+//     transform: [
+//       {
+//         translateY: interpolate(
+//           navBarAnimation.value,
+//           [0, 1],
+//           [0, height * 0.5]
+//         ),
+//       },
+//     ],
+//   }));
+
+//   const panGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       const translationY = event.translationY;
+//       navBarAnimation.value = Math.max(0, Math.min(1, translationY / (height * 0.5)));
+//     })
+//     .onEnd(() => {
+//       if (navBarAnimation.value > 0.5) {
+//         navBarAnimation.value = withTiming(1, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(false);
+//       } else {
+//         navBarAnimation.value = withTiming(0, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(true);
+//       }
+//     });
+
+//   if (redirectToPermissions) return <Redirect href="/permissions" />;
+//   if (!device) return null;
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       {/* Camera with pointerEvents to allow gestures */}
+//       <View style={styles.cameraContainer} pointerEvents="box-none">
+//         <Camera
+//           ref={camera}
+//           style={StyleSheet.absoluteFill}
+//           photo={true}
+//           zoom={zoom}
+//           device={device}
+//           isActive={true}
+//           resizeMode="cover"
+//           preview={true}
+//           exposure={exposure}
+//           torch={torch}
+//           pointerEvents="none" // Disable camera touch handling
+//         />
+//         <BlurView
+//           intensity={100}
+//           tint="dark"
+//           style={styles.infoOverlay}
+//         >
+//           <Text style={{ color: "white" }}>
+//             Exposure: {exposure} | Zoom: x{zoom.toFixed(1)}
+//           </Text>
+//         </BlurView>
+//       </View>
+
+//       {/* Dynamic Zoom Indicator in Top-Left Corner */}
+//       <View style={styles.zoomControlContainer}>
+//         <Text style={styles.zoomText}>{`Zoom: x${zoom.toFixed(1)}`}</Text>
+//         <TouchableHighlight
+//           underlayColor="rgba(255, 255, 255, 0.1)"
+//           onPress={() => setShowZoomControls(!showZoomControls)}
+//           style={styles.gearButton}
+//         >
+//           <FontAwesome5 name="cog" size={24} color="white" />
+//         </TouchableHighlight>
+//       </View>
+
+//       {/* Overlay for ZoomControls */}
+//       {showZoomControls && (
+//         <View style={styles.overlay}>
+//           <ZoomControls
+//             setZoom={setZoom}
+//             setShowZoomControls={setShowZoomControls}
+//             zoom={zoom}
+//           />
+//         </View>
+//       )}
+
+//       {showExposureControls && (
+//         <View style={styles.overlay}>
+//           <ExposureControls
+//             setExposure={setExposure}
+//             setShowExposureControls={setShowExposureControls}
+//             exposure={exposure}
+//         />
+//       </View>
+//       )}
+
+//       {/* Navigation Bar */}
+//       <Animated.View style={[styles.navBarContainer, navBarStyle]}>
+//         {!(showZoomControls || showExposureControls) && (
+//           <View style={{ flex: 1, padding: 10 }}>
+//             <View style={styles.topSection}>
+//               <ThemedText>Max FPS: {device.formats[0].maxFps}</ThemedText>
+//               <ThemedText>
+//                 Width: {device.formats[0].photoWidth} Height: {device.formats[0].photoHeight}
+//               </ThemedText>
+//               <ThemedText>Camera: {device.name}</ThemedText>
+//             </View>
+//             <View style={styles.middleSection}>
+//               <ObscuraButton
+//                 iconName={torch === "on" ? "flashlight" : "flashlight-outline"}
+//                 onPress={() => setTorch((t) => (t === "off" ? "on" : "off"))}
+//               />
+//               <ObscuraButton
+//                 iconName={flash === "on" ? "flash-outline" : "flash-off-outline"}
+//                 onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+//               />
+//               <ObscuraButton
+//                 iconName="camera-reverse-outline"
+//                 onPress={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
+//               />
+//               <ObscuraButton
+//                 iconName="image-outline"
+//                 onPress={() => {
+//                   const link = Platform.select({
+//                     ios: "photos-redirect://",
+//                     android: "content://media/external/images/media",
+//                   });
+//                   Linking.openURL(link!);
+//                 }}
+//               />
+//               <ObscuraButton
+//                 iconName="settings-outline"
+//                 onPress={() => router.push("/_sitemap")}
+//               />
+//             </View>
+//             <View style={styles.bottomSection}>
+//               <ObscuraButton
+//                 iconSize={40}
+//                 title="+/-"
+//                 onPress={() => setShowZoomControls(true)}
+//               />
+//               <ObscuraButton
+//                 iconSize={40}
+//                 title="1x"
+//                 onPress={() => setShowExposureControls(true)}
+//               />
+//             </View>
+//           </View>
+//         )}
+//       </Animated.View>
+
+//       {/* Control Overlay */}
+//       <View style={styles.controlOverlay}>
+//         <TouchableHighlight onPress={takePicture} underlayColor="transparent">
+//           <FontAwesome5 name="dot-circle" size={55} color="white" />
+//         </TouchableHighlight>
+//         <GestureDetector gesture={panGesture}>
+//           <Animated.View style={styles.swipeBar}>
+//             <View style={styles.handleBar} />
+//           </Animated.View>
+//         </GestureDetector>
+//       </View>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+//     backgroundColor: "transparent",
+//   },
+//   cameraContainer: {
+//     flex: 1,
+//     position: "absolute",
+//     top: 0,
+//     left: 0,
+//     right: 0,
+//     bottom: 0,
+//     zIndex: 0,
+//   },
+//   infoOverlay: {
+//     position: "absolute",
+//     bottom: 0,
+//     right: 0,
+//     padding: 10,
+//     zIndex: 1,
+//   },
+//   zoomControlContainer: {
+//     position: "absolute",
+//     top: 20,
+//     left: 20,
+//     flexDirection: "row",
+//     alignItems: "center",
+//     zIndex: 10,
+//   },
+//   zoomText: {
+//     color: "white",
+//     fontSize: 16,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     paddingHorizontal: 10,
+//     paddingVertical: 5,
+//     borderRadius: 5,
+//     marginRight: 10,
+//   },
+//   gearButton: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 20,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   overlay: {
+//     ...StyleSheet.absoluteFillObject,
+//     zIndex: 20,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   controlOverlay: {
+//     position: "absolute",
+//     bottom: 20,
+//     left: 0,
+//     right: 0,
+//     alignItems: "center",
+//     zIndex: 10,
+//     flexDirection: "column",
+//     justifyContent: "center",
+//   },
+//   swipeBar: {
+//     marginTop: 10,
+//     width: 60,
+//     height: 30,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     zIndex: 11,
+//   },
+//   handleBar: {
+//     width: 40,
+//     height: 4,
+//     backgroundColor: "white",
+//     borderRadius: 2,
+//   },
+//   navBarContainer: {
+//     position: "absolute",
+//     bottom: 0,
+//     left: 0,
+//     right: 0,
+//     height: "50%",
+//     backgroundColor: "rgba(0, 0, 0, 0.8)",
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     zIndex: 5,
+//   },
+//   topSection: { flex: 0.7, paddingTop: 10 },
+//   middleSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//   },
+//   bottomSection: {
+//     flex: 1.1,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//     alignItems: "center",
+//   },
+// });
+
+/////////////////
+
+// import * as React from "react";
+// import {
+//   StyleSheet,
+//   Platform,
+//   View,
+//   SafeAreaView,
+//   StatusBar,
+//   TouchableHighlight,
+//   Linking,
+//   Text,
+//   Vibration,
+// } from "react-native";
+// import {
+//   Camera,
+//   useCameraDevice,
+//   useCameraPermission,
+// } from "react-native-vision-camera";
+// import { Redirect, useRouter } from "expo-router";
+// import { ThemedText } from "@/components/ThemedText";
+// import ObscuraButton from "@/components/ObscuraButton";
+// import { FontAwesome5 } from "@expo/vector-icons";
+// import { BlurView } from "expo-blur";
+// import Animated, {
+//   useSharedValue,
+//   useAnimatedStyle,
+//   withTiming,
+//   runOnJS,
+// } from "react-native-reanimated";
+// import {
+//   Gesture,
+//   GestureDetector,
+//   PanGestureHandler,
+// } from "react-native-gesture-handler";
+// // import Slider from "react-native-slider"
+// import { useWindowDimensions } from "react-native";
+// import TapProgressBar from "./Tapprogress";
+// // import { Slider } from "react-native-gesture-handler";
+
+// // import io from "socket.io-client";
+
+// // import * as Haptics from "expo-haptic-feedback";
+
+// // Constants
+// const MIN_ZOOM = 1;
+// const MAX_ZOOM = 10;
+// const ZOOM_STEP = 0.1;
+// const CAMERA_MODES = ["Photo", "Video", "Portrait", "Panorama"];
+
+// // Socket.IO Setup
+// // const socket = io("http://your-backend-url:5000", {
+// //   reconnection: true,
+// //   reconnectionAttempts: 5,
+// //   reconnectionDelay: 1000,
+// // });
+
+// export default function HomeScreen() {
+//   const { hasPermission } = useCameraPermission();
+//   const microphonePermission = Camera.getMicrophonePermissionStatus();
+//   const [isNavBarVisible, setIsNavBarVisible] = React.useState(true);
+//   const [detections, setDetections] = React.useState([]);
+//   const [cameraMode, setCameraMode] = React.useState("Photo");
+//   const [aiMode, setAiMode] = React.useState(false);
+//   const [angleMode, setAngleMode] = React.useState(false);
+//   const [feedbackMessage, setFeedbackMessage] = React.useState("");
+//   const [angleDirection, setAngleDirection] = React.useState(null);
+
+//   const camera = React.useRef<Camera>(null);
+//   const device = useCameraDevice("back");
+//   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">("back");
+//   const [zoom, setZoom] = React.useState(device?.neutralZoom || 1);
+//   const [exposure, setExposure] = React.useState(0);
+//   const [focus, setFocus] = React.useState(0);
+//   const [flash, setFlash] = React.useState<"off" | "on">("off");
+//   const [torch, setTorch] = React.useState<"off" | "on">("off");
+//   const redirectToPermissions = !hasPermission || microphonePermission === "not-determined";
+//   const router = useRouter();
+//   const { height, width } = useWindowDimensions();
+
+//   // Focus area position
+//   const focusX = useSharedValue(width / 2 - 50);
+//   const focusY = useSharedValue(height / 2 - 50);
+
+//   const navBarAnimation = useSharedValue(0);
+
+//   // Socket.IO Connection
+//   // React.useEffect(() => {
+//   //   socket.on("connect", () => {
+//   //     console.log("Connected to backend");
+//   //   });
+
+//   //   socket.on("ai_adjustments", (data) => {
+//   //     if (aiMode) {
+//   //       setZoom(data.zoom || zoom);
+//   //       setExposure(data.exposure || exposure);
+//   //       setFocus(data.focus || focus);
+//   //       setFeedbackMessage(data.message || "Optimal settings applied");
+//   //       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//   //     }
+//   //   });
+
+//   //   socket.on("angle_recommendation", (data) => {
+//   //     if (angleMode) {
+//   //       setAngleDirection(data.direction);
+//   //       setFeedbackMessage(data.message || "Adjust angle");
+//   //       if (data.direction) {
+//   //         Vibration.vibrate(200);
+//   //       }
+//   //     }
+//   //   });
+
+//   //   socket.on("disconnect", () => {
+//   //     console.log("Disconnected from backend");
+//   //   });
+
+//   //   return () => {
+//   //     socket.off("connect");
+//   //     socket.off("ai_adjustments");
+//   //     socket.off("angle_recommendation");
+//   //     socket.off("disconnect");
+//   //   };
+//   // }, [aiMode, angleMode, zoom, exposure, focus]);
+
+//   // Send camera data to backend when AI modes are active
+//   // React.useEffect(() => {
+//   //   if (aiMode || angleMode) {
+//   //     socket.emit("camera_data", {
+//   //       zoom,
+//   //       exposure,
+//   //       focus,
+//   //       mode: cameraMode,
+//   //       aiMode,
+//   //       angleMode,
+//   //     });
+//   //   }
+//   // }, [zoom, exposure, focus, cameraMode, aiMode, angleMode]);
+
+//   // Take a picture
+//   const takePicture = async () => {
+//     try {
+//       if (camera.current == null) throw new Error("Camera ref is null!");
+//       console.log("Taking photo...");
+//       const photo = await camera.current.takePhoto({
+//         flash: flash,
+//         enableShutterSound: false,
+//       });
+//       router.push({
+//         pathname: "/media",
+//         params: { media: photo.path, type: "photo" },
+//       });
+//     } catch (e) {
+//       console.error("Failed to take photo!", e);
+//     }
+//   };
+
+//   // Handle tap to focus
+//   const tapGesture = Gesture.Tap().onEnd((event) => {
+//     const newX = event.x - 50; // Adjust for focus area size
+//     const newY = event.y - 50;
+//     focusX.value = withTiming(Math.max(0, Math.min(newX, width - 100)), { duration: 200 });
+//     focusY.value = withTiming(Math.max(0, Math.min(newY, height - 100)), { duration: 200 });
+//     // Simulate auto-focus adjustment
+//     setFocus(focus + 0.1);
+//     setFeedbackMessage("Focus adjusted");
+//     // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//   });
+
+//   // Handle drag to move focus area
+//   const panGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       focusX.value = Math.max(0, Math.min(focusX.value + event.translationX, width - 100));
+//       focusY.value = Math.max(0, Math.min(focusY.value + event.translationY, height - 100));
+//     })
+//     .onEnd(() => {
+//       setFeedbackMessage("Focus area moved");
+//       // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//     });
+
+//   const focusStyle = useAnimatedStyle(() => ({
+//     transform: [{ translateX: focusX.value }, { translateY: focusY.value }],
+//   }));
+
+//   // const navBarStyle = useAnimatedStyle(() => ({
+//   //   transform: [
+//   //     {
+//   //       translateY: interpolate(
+//   //         navBarAnimation.value,
+//   //         [0, 1],
+//   //         [0, height * 0.5]
+//   //       ),
+//   //     },
+//   //   ],
+//   // }));
+
+//   const navBarGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       const translationY = event.translationY;
+//       navBarAnimation.value = Math.max(0, Math.min(1, translationY / (height * 0.5)));
+//     })
+//     .onEnd(() => {
+//       if (navBarAnimation.value > 0.5) {
+//         navBarAnimation.value = withTiming(1, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(false);
+//       } else {
+//         navBarAnimation.value = withTiming(0, { duration: 200 });
+//         runOnJS(setIsNavBarVisible)(true);
+//       }
+//     });
+
+//   if (redirectToPermissions) return <Redirect href={"/permissions"} />;
+//   if (!device) return <></>;
+
+//   return (
+//     <>
+//       <StatusBar barStyle={"light-content"} />
+//       <SafeAreaView style={styles.container}>
+//         {/* Full-screen Camera with Grid Overlay */}
+//         <View style={styles.cameraContainer} pointerEvents="box-none">
+//           <Camera
+//             ref={camera}
+//             style={StyleSheet.absoluteFill}
+//             photo={true}
+//             video={cameraMode === "Video"}
+//             zoom={zoom}
+//             device={device}
+//             isActive={true}
+//             resizeMode="cover"
+//             preview={true}
+//             exposure={exposure}
+//             torch={torch}
+//             pointerEvents="none"
+//           />
+//           {/* Grid Overlay */}
+//           <View style={styles.gridOverlay}>
+//             <View style={styles.gridCircle} />
+//             <View style={styles.gridLineHorizontal} />
+//             <View style={styles.gridLineVertical} />
+//           </View>
+//           {/* Draggable Focus Area */}
+//           <GestureDetector gesture={Gesture.Simultaneous(tapGesture, panGesture)}>
+//             <Animated.View style={[styles.focusArea, focusStyle]} />
+//           </GestureDetector>
+//           <BlurView intensity={100} tint="dark" style={styles.infoOverlay}>
+//             <Text style={{ color: "white" }}>
+//               Mode: {cameraMode} | Zoom: x{zoom.toFixed(1)}
+//             </Text>
+//           </BlurView>
+//         </View>
+
+//         {/* Zoom Indicator and Toggles in Top-Left Corner */}
+//         <View style={styles.topControls}>
+//           <Text style={styles.zoomText}>{`Zoom: x${zoom.toFixed(1)}`}</Text>
+//           <TouchableHighlight
+//             underlayColor="rgba(255, 255, 255, 0.1)"
+//             onPress={() => setAiMode(!aiMode)}
+//             style={[styles.toggleButton, aiMode && styles.toggleButtonActive]}
+//           >
+//             <Text style={styles.toggleText}>AI Mode</Text>
+//           </TouchableHighlight>
+//           <TouchableHighlight
+//             underlayColor="rgba(255, 255, 255, 0.1)"
+//             onPress={() => setAngleMode(!angleMode)}
+//             style={[styles.toggleButton, angleMode && styles.toggleButtonActive]}
+//           >
+//             <Text style={styles.toggleText}>360° Angle</Text>
+//           </TouchableHighlight>
+//         </View>
+
+//         {/* Sliders for Exposure, Focus, and Zoom */}
+//         {/* <View style={styles.slidersContainer}>
+//           <View style={styles.sliderItem}>
+//             <Text style={styles.sliderLabel}>Exposure</Text>
+//             <Slider
+//               style={styles.slider}
+//               minimumValue={-1}
+//               maximumValue={1}
+//               value={exposure}
+//               onValueChange={(value) => setExposure(value)}
+//               minimumTrackTintColor="#FFFFFF"
+//               maximumTrackTintColor="#000000"
+//             />
+//           </View>
+//           <View style={styles.sliderItem}>
+//             <Text style={styles.sliderLabel}>Focus</Text>
+//             <Slider              style={styles.slider}
+//               minimumValue={-1}
+//               maximumValue={1}
+//               value={focus}
+//               onValueChange={(value) => setFocus(value)}
+//               minimumTrackTintColor="#FFFFFF"
+//               maximumTrackTintColor="#000000"
+//             />
+//           </View>
+//           <View style={styles.sliderItem}>
+//             <Text style={styles.sliderLabel}>Zoom</Text>
+//             <Slider
+//               style={styles.slider}
+//               minimumValue={MIN_ZOOM}
+//               maximumValue={MAX_ZOOM}
+//               value={zoom}
+//               onValueChange={(value) => setZoom(value)}
+//               minimumTrackTintColor="#FFFFFF"
+//               maximumTrackTintColor="#000000"
+//             />
+//           </View>
+//         </View> */}
+//         <View style={styles.buttonControlsContainer}>
+//   <TapProgressBar
+//     label="Exposure"
+//     value={exposure}
+//     min={-1}
+//     max={1}
+//     step={EXPOSURE_STEP}
+//     onValueChange={setExposure}
+//   />
+//   <TapProgressBar
+//     label="Focus"
+//     value={focus}
+//     min={-1}
+//     max={1}
+//     step={FOCUS_STEP}
+//     onValueChange={setFocus}
+//   />
+//   <TapProgressBar
+//     label="Zoom"
+//     value={zoom}
+//     min={MIN_ZOOM}
+//     max={MAX_ZOOM}
+//     step={ZOOM_STEP}
+//     onValueChange={setZoom}
+//   />
+// </View>
+
+//         {/* Feedback Message */}
+//         {feedbackMessage ? (
+//           <View style={styles.feedbackContainer}>
+//             <Text style={styles.feedbackText}>{feedbackMessage}</Text>
+//             {angleDirection && (
+//               <FontAwesome5
+//                 name={`arrow-${angleDirection}`}
+//                 size={24}
+//                 color="white"
+//                 style={styles.feedbackArrow}
+//               />
+//             )}
+//           </View>
+//         ) : null}
+
+//         {/* Floating Navigation Bar  , navBarStyle */}
+//         <Animated.View style={[styles.navBarContainer]}>
+//           {isNavBarVisible && (
+//             <View style={{ flex: 1, padding: 10 }}>
+//               <View style={styles.modeSection}>
+//                 {CAMERA_MODES.map((mode) => (
+//                   <TouchableHighlight
+//                     key={mode}
+//                     underlayColor="rgba(255, 255, 255, 0.1)"
+//                     onPress={() => setCameraMode(mode)}
+//                     style={[
+//                       styles.modeButton,
+//                       cameraMode === mode && styles.modeButtonActive,
+//                     ]}
+//                   >
+//                     <Text style={styles.modeText}>{mode}</Text>
+//                   </TouchableHighlight>
+//                 ))}
+//               </View>
+//               <View style={styles.middleSection}>
+//                 <ObscuraButton
+//                   iconName={torch === "on" ? "flashlight" : "flashlight-outline"}
+//                   onPress={() => setTorch((t) => (t === "off" ? "on" : "off"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName={flash === "on" ? "flash-outline" : "flash-off-outline"}
+//                   onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName="camera-reverse-outline"
+//                   onPress={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName="image-outline"
+//                   onPress={() => {
+//                     const link = Platform.select({
+//                       ios: "photos-redirect://",
+//                       android: "content://media/external/images/media",
+//                     });
+//                     Linking.openURL(link!);
+//                   }}
+//                 />
+//                 <ObscuraButton
+//                   iconName="settings-outline"
+//                   onPress={() => router.push("/_sitemap")}
+//                 />
+//               </View>
+//             </View>
+//           )}
+//         </Animated.View>
+
+//         {/* Capture Button and Swipe Bar */}
+//         <View style={styles.controlOverlay}>
+//           <TouchableHighlight onPress={takePicture} underlayColor="transparent">
+//             <FontAwesome5 name="dot-circle" size={55} color={"white"} />
+//           </TouchableHighlight>
+//           <GestureDetector gesture={navBarGesture}>
+//             <Animated.View style={styles.swipeBar}>
+//               <View style={styles.handleBar} />
+//             </Animated.View>
+//           </GestureDetector>
+//         </View>
+//       </SafeAreaView>
+//     </>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+//     backgroundColor: "transparent",
+//   },
+//   cameraContainer: {
+//     flex: 1,
+//     position: "absolute",
+//     top: 0,
+//     left: 0,
+//     right: 0,
+//     bottom: 0,
+//     zIndex: 0,
+//   },
+//   gridOverlay: {
+//     ...StyleSheet.absoluteFillObject,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   gridCircle: {
+//     width: 200,
+//     height: 200,
+//     borderRadius: 100,
+//     borderWidth: 1,
+//     borderColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   gridLineHorizontal: {
+//     position: "absolute",
+//     width: "100%",
+//     height: 1,
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   gridLineVertical: {
+//     position: "absolute",
+//     width: 1,
+//     height: "100%",
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   focusArea: {
+//     position: "absolute",
+//     width: 100,
+//     height: 100,
+//     borderWidth: 2,
+//     borderColor: "red",
+//   },
+//   infoOverlay: {
+//     position: "absolute",
+//     bottom: 0,
+//     right: 0,
+//     padding: 10,
+//     zIndex: 1,
+//   },
+//   topControls: {
+//     position: "absolute",
+//     top: 20,
+//     left: 20,
+//     flexDirection: "row",
+//     alignItems: "center",
+//     zIndex: 10,
+//   },
+//   zoomText: {
+//     color: "white",
+//     fontSize: 16,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     paddingHorizontal: 10,
+//     paddingVertical: 5,
+//     borderRadius: 5,
+//     marginRight: 10,
+//   },
+//   toggleButton: {
+//     paddingHorizontal: 10,
+//     paddingVertical: 5,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     borderRadius: 5,
+//     marginRight: 10,
+//   },
+//   toggleButtonActive: {
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   toggleText: {
+//     color: "white",
+//     fontSize: 14,
+//   },
+//   slidersContainer: {
+//     position: "absolute",
+//     bottom: 100,
+//     left: 20,
+//     right: 20,
+//     zIndex: 10,
+//   },
+//   sliderItem: {
+//     marginVertical: 5,
+//   },
+//   sliderLabel: {
+//     color: "white",
+//     fontSize: 14,
+//     marginBottom: 5,
+//   },
+//   slider: {
+//     height: 40,
+//   },
+//   feedbackContainer: {
+//     position: "absolute",
+//     top: "50%",
+//     left: "20%",
+//     right: "20%",
+//     alignItems: "center",
+//     backgroundColor: "rgba(0, 0, 0, 0.7)",
+//     padding: 10,
+//     borderRadius: 10,
+//     zIndex: 10,
+//   },
+//   feedbackText: {
+//     color: "white",
+//     fontSize: 16,
+//   },
+//   feedbackArrow: {
+//     marginTop: 10,
+//   },
+//   navBarContainer: {
+//     position: "absolute",
+//     bottom: 0,
+//     left: 0,
+//     right: 0,
+//     height: "50%",
+//     backgroundColor: "rgba(0,0,0,0.8)",
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     zIndex: 5,
+//   },
+//   modeSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//     paddingTop: 10,
+//   },
+//   modeButton: {
+//     paddingHorizontal: 10,
+//     paddingVertical: 5,
+//     borderRadius: 5,
+//     backgroundColor: "rgba(255, 255, 255, 0.1)",
+//   },
+//   modeButtonActive: {
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   modeText: {
+//     color: "white",
+//     fontSize: 14,
+//   },
+//   middleSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//   },
+//   controlOverlay: {
+//     position: "absolute",
+//     bottom: 20,
+//     left: 0,
+//     right: 0,
+//     alignItems: "center",
+//     zIndex: 10,
+//     flexDirection: "column",
+//     justifyContent: "center",
+//   },
+//   swipeBar: {
+//     marginTop: 10,
+//     width: 60,
+//     height: 30,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     zIndex: 11,
+//   },
+//   handleBar: {
+//     width: 40,
+//     height: 4,
+//     backgroundColor: "white",
+//     borderRadius: 2,
+//   },
+// });
+
+//////////////////////////////
+
+// import * as React from "react";
+// import {
+//   StyleSheet,
+//   Platform,
+//   View,
+//   SafeAreaView,
+//   StatusBar,
+//   TouchableHighlight,
+//   Linking,
+//   Text,
+//   Vibration,
+// } from "react-native";
+// import {
+//   Camera,
+//   useCameraDevice,
+//   useCameraPermission,
+// } from "react-native-vision-camera";
+// import { Redirect, useRouter } from "expo-router";
+// import { ThemedText } from "@/components/ThemedText";
+// import ObscuraButton from "@/components/ObscuraButton";
+// import { FontAwesome5 } from "@expo/vector-icons";
+// import { BlurView } from "expo-blur";
+// import Animated, {
+//   useSharedValue,
+//   useAnimatedStyle,
+//   withTiming,
+//   runOnJS,
+//   interpolate,
+// } from "react-native-reanimated";
+// import {
+//   Gesture,
+//   GestureDetector,
+//   PanGestureHandler,
+// } from "react-native-gesture-handler";
+// import { useWindowDimensions } from "react-native";
+// // import io from "socket.io-client";
+// // import * as Haptics from "expo-haptic-feedback";
+
+// // Constants
+// const MIN_ZOOM = 1;
+// const MAX_ZOOM = 10;
+// const ZOOM_STEP = 0.1;
+// const EXPOSURE_STEP = 0.1; // Corrected and defined
+// const FOCUS_STEP = 0.1; // Corrected and defined
+// const CAMERA_MODES = ["Photo", "Video", "Portrait", "Panorama"];
+// const ZOOM_RANGES = [
+//   { min: 1, max: 1.5, label: "1x ... 1.5x" },
+//   { min: 2, max: 2.5, label: "2x ... 2.5x" },
+//   { min: 3, max: 3.5, label: "3x ... 3.5x" },
+//   { min: 4, max: 5, label: "4x ... 5x" },
+// ];
+
+// // Socket.IO Setup
+// // const socket = io("http://your-backend-url:5000", {
+// //   reconnection: true,
+// //   reconnectionAttempts: 5,
+// //   reconnectionDelay: 1000,
+// // });
+
+// export default function HomeScreen() {
+//   const { hasPermission } = useCameraPermission();
+//   const microphonePermission = Camera.getMicrophonePermissionStatus();
+//   const [isNavBarVisible, setIsNavBarVisible] = React.useState(true);
+//   const [detections, setDetections] = React.useState([]);
+//   const [cameraMode, setCameraMode] = React.useState("Photo");
+//   const [aiMode, setAiMode] = React.useState(false);
+//   const [angleMode, setAngleMode] = React.useState(false);
+//   const [feedbackMessage, setFeedbackMessage] = React.useState("");
+//   const [angleDirection, setAngleDirection] = React.useState(null);
+//   const [showZoomControls, setShowZoomControls] = React.useState(false);
+
+//   const camera = React.useRef<Camera>(null);
+//   const device = useCameraDevice("back");
+//   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">("back");
+//   const [zoom, setZoom] = React.useState(device?.neutralZoom || 1);
+//   const [exposure, setExposure] = React.useState(0);
+//   const [focus, setFocus] = React.useState(0);
+//   const [flash, setFlash] = React.useState<"off" | "on">("off");
+//   const [torch, setTorch] = React.useState<"off" | "on">("off");
+//   const redirectToPermissions = !hasPermission || microphonePermission === "not-determined";
+//   const router = useRouter();
+//   const { height, width } = useWindowDimensions();
+
+//   // Focus area position
+//   const focusX = useSharedValue(width / 2 - 50);
+//   const focusY = useSharedValue(height / 2 - 50);
+
+//   const navBarAnimation = useSharedValue(0);
+
+//   // Socket.IO Connection
+//   // React.useEffect(() => {
+//   //   socket.on("connect", () => console.log("Connected to backend"));
+//   //   socket.on("ai_adjustments", (data) => {
+//   //     if (aiMode) {
+//   //       setZoom(data.zoom || zoom);
+//   //       setExposure(data.exposure || exposure);
+//   //       setFocus(data.focus || focus);
+//   //       setFeedbackMessage(data.message || "Optimal settings applied");
+//   //       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//   //     }
+//   //   });
+//   //   socket.on("angle_recommendation", (data) => {
+//   //     if (angleMode) {
+//   //       setAngleDirection(data.direction);
+//   //       setFeedbackMessage(data.message || "Adjust angle");
+//   //       if (data.direction) Vibration.vibrate(200);
+//   //     }
+//   //   });
+//   //   socket.on("disconnect", () => console.log("Disconnected from backend"));
+
+//   //   return () => {
+//   //     socket.off("connect");
+//   //     socket.off("ai_adjustments");
+//   //     socket.off("angle_recommendation");
+//   //     socket.off("disconnect");
+//   //   };
+//   // }, [aiMode, angleMode, zoom, exposure, focus]);
+
+//   // React.useEffect(() => {
+//   //   if (aiMode || angleMode) {
+//   //     socket.emit("camera_data", { zoom, exposure, focus, mode: cameraMode, aiMode, angleMode });
+//   //   }
+//   // }, [zoom, exposure, focus, cameraMode, aiMode, angleMode]);
+
+//   const takePicture = async () => {
+//     try {
+//       if (camera.current == null) throw new Error("Camera ref is null!");
+//       const photo = await camera.current.takePhoto({ flash, enableShutterSound: false });
+//       router.push({ pathname: "/media", params: { media: photo.path, type: "photo" } });
+//     } catch (e) {
+//       console.error("Failed to take photo!", e);
+//     }
+//   };
+
+//   const tapGesture = Gesture.Tap().onEnd((event) => {
+//     const newX = event.x - 50;
+//     const newY = event.y - 50;
+//     focusX.value = withTiming(Math.max(0, Math.min(newX, width - 100)), { duration: 200 });
+//     focusY.value = withTiming(Math.max(0, Math.min(newY, height - 100)), { duration: 200 });
+//     setFocus(focus + 0.1);
+//     setFeedbackMessage("Focus adjusted");
+//     // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//   });
+
+//   const panGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       focusX.value = Math.max(0, Math.min(focusX.value + event.translationX, width - 100));
+//       focusY.value = Math.max(0, Math.min(focusY.value + event.translationY, height - 100));
+//     })
+//     .onEnd(() => {
+//       setFeedbackMessage("Focus area moved");
+//       // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+//     });
+
+//   const focusStyle = useAnimatedStyle(() => ({
+//     transform: [{ translateX: focusX.value }, { translateY: focusY.value }],
+//   }));
+
+//   const navBarStyle = useAnimatedStyle(() => ({
+//     transform: [{ translateY: interpolate(navBarAnimation.value, [0, 1], [0, 0]) }],
+//   }));
+
+//   const navBarGesture = Gesture.Pan()
+//     .onUpdate((event) => {
+//       navBarAnimation.value = Math.max(0, Math.min(1, event.translationY / (0)));
+//     })
+//     .onEnd(() => {
+//       navBarAnimation.value = withTiming(navBarAnimation.value > 0.5 ? 1 : 0, { duration: 200 });
+//       runOnJS(setIsNavBarVisible)(navBarAnimation.value <= 0.5);
+//     });
+
+//   const adjustValue = (type: string, delta: number) => {
+//     switch (type) {
+//       case "zoom":
+//         setZoom(Math.min(Math.max(zoom + delta * ZOOM_STEP, MIN_ZOOM), MAX_ZOOM));
+//         break;
+//       case "exposure":
+//         setExposure(Math.min(Math.max(exposure + delta * EXPOSURE_STEP, -1), 1));
+//         break;
+//       case "focus":
+//         setFocus(Math.min(Math.max(focus + delta * FOCUS_STEP, -1), 1));
+//         break;
+//     }
+//     // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Light);
+//   };
+
+//   if (redirectToPermissions) return <Redirect href={"/permissions"} />;
+//   if (!device) return <></>;
+
+//   return (
+//     <>
+//       <StatusBar barStyle={"light-content"} />
+//       <SafeAreaView style={styles.container}>
+//         <View style={styles.cameraContainer} pointerEvents="box-none">
+//           <Camera
+//             ref={camera}
+//             style={StyleSheet.absoluteFill}
+//             photo={true}
+//             video={cameraMode === "Video"}
+//             zoom={zoom}
+//             device={device}
+//             isActive={true}
+//             resizeMode="cover"
+//             preview={true}
+//             exposure={exposure}
+//             torch={torch}
+//             pointerEvents="none"
+//           />
+//           <View style={styles.gridOverlay}>
+//             <View style={styles.gridCircle} />
+//             <View style={styles.gridLineHorizontal} />
+//             <View style={styles.gridLineVertical} />
+//           </View>
+//           <GestureDetector gesture={Gesture.Simultaneous(tapGesture, panGesture)}>
+//             <Animated.View style={[styles.focusArea, focusStyle]} />
+//           </GestureDetector>
+//           <BlurView intensity={100} tint="dark" style={styles.infoOverlay}>
+//             <Text style={{ color: "white" }}>
+//               Mode: {cameraMode} | Zoom: x{zoom.toFixed(1)}
+//             </Text>
+//           </BlurView>
+//         </View>
+
+//         <View style={styles.zoomControllerContainer}>
+//           <TouchableHighlight
+//             underlayColor="rgba(255, 255, 255, 0.1)"
+//             onPress={() => setShowZoomControls(!showZoomControls)}
+//             style={styles.gearButton}
+//           >
+//             <FontAwesome5 name="cog" size={24} color="white" />
+//           </TouchableHighlight>
+//           <View style={styles.circularZoom}>
+//             {ZOOM_RANGES.map((range, index) => {
+//               const isActive = zoom >= range.min && zoom <= range.max;
+//               return (
+//                 <Text
+//                   key={index}
+//                   style={[
+//                     styles.zoomRangeText,
+//                     isActive && styles.zoomRangeTextActive,
+//                   ]}
+//                 >
+//                   {range.label}
+//                 </Text>
+//               );
+//             })}
+//             <Text style={styles.currentZoomText}>{`x${zoom.toFixed(1)}`}</Text>
+//             <View style={styles.circularArc} />
+//           </View>
+//         </View>
+
+//         {showZoomControls && (
+//           <View style={styles.overlay}>
+//             <ZoomControls
+//               setZoom={setZoom}
+//               setShowZoomControls={setShowZoomControls}
+//               zoom={zoom}
+//             />
+//           </View>
+//         )}
+
+//         {/* Button Controls for Exposure, Focus, and Zoom */}
+//         <View style={styles.buttonControlsContainer}>
+//           <View style={styles.controlRow}>
+//             <Text style={styles.controlLabel}>Exposure: {exposure.toFixed(1)}</Text>
+//             <View style={styles.buttonGroup}>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("exposure", -1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>-</Text>
+//               </TouchableHighlight>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("exposure", 1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>+</Text>
+//               </TouchableHighlight>
+//             </View>
+//           </View>
+//           <View style={styles.controlRow}>
+//             <Text style={styles.controlLabel}>Focus: {focus.toFixed(1)}</Text>
+//             <View style={styles.buttonGroup}>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("focus", -1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>-</Text>
+//               </TouchableHighlight>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("focus", 1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>+</Text>
+//               </TouchableHighlight>
+//             </View>
+//           </View>
+//           <View style={styles.controlRow}>
+//             <Text style={styles.controlLabel}>Zoom: x{zoom.toFixed(1)}</Text>
+//             <View style={styles.buttonGroup}>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("zoom", -1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>-</Text>
+//               </TouchableHighlight>
+//               <TouchableHighlight
+//                 underlayColor="rgba(255, 255, 255, 0.1)"
+//                 onPress={() => adjustValue("zoom", 1)}
+//                 style={styles.adjustButton}
+//               >
+//                 <Text style={styles.buttonText}>+</Text>
+//               </TouchableHighlight>
+//             </View>
+//           </View>
+//         </View>
+
+//         {feedbackMessage ? (
+//           <View style={styles.feedbackContainer}>
+//             <Text style={styles.feedbackText}>{feedbackMessage}</Text>
+//             {angleDirection && (
+//               <FontAwesome5
+//                 name={`arrow-${angleDirection}`}
+//                 size={24}
+//                 color="white"
+//                 style={styles.feedbackArrow}
+//               />
+//             )}
+//           </View>
+//         ) : null}
+
+//         <Animated.View style={[styles.navBarContainer, navBarStyle]}>
+//           {isNavBarVisible && (
+//             <View style={{ flex: 1, padding: 10 }}>
+//               <View style={styles.modeSection}>
+//                 {CAMERA_MODES.map((mode) => (
+//                   <TouchableHighlight
+//                     key={mode}
+//                     underlayColor="rgba(255, 255, 255, 0.1)"
+//                     onPress={() => setCameraMode(mode)}
+//                     style={[
+//                       styles.modeButton,
+//                       cameraMode === mode && styles.modeButtonActive,
+//                     ]}
+//                   >
+//                     <Text style={styles.modeText}>{mode}</Text>
+//                   </TouchableHighlight>
+//                 ))}
+//               </View>
+//               <View style={styles.middleSection}>
+//                 <ObscuraButton
+//                   iconName={torch === "on" ? "flashlight" : "flashlight-outline"}
+//                   onPress={() => setTorch((t) => (t === "off" ? "on" : "off"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName={flash === "on" ? "flash-outline" : "flash-off-outline"}
+//                   onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName="camera-reverse-outline"
+//                   onPress={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
+//                 />
+//                 <ObscuraButton
+//                   iconName="image-outline"
+//                   onPress={() => {
+//                     const link = Platform.select({
+//                       ios: "photos-redirect://",
+//                       android: "content://media/external/images/media",
+//                     });
+//                     Linking.openURL(link!);
+//                   }}
+//                 />
+//                 <ObscuraButton
+//                   iconName="settings-outline"
+//                   onPress={() => router.push("/_sitemap")}
+//                 />
+//               </View>
+//             </View>
+//           )}
+//         </Animated.View>
+
+//         <View style={styles.controlOverlay}>
+//           <TouchableHighlight onPress={takePicture} underlayColor="transparent">
+//             <FontAwesome5 name="dot-circle" size={55} color={"white"} />
+//           </TouchableHighlight>
+//           <GestureDetector gesture={navBarGesture}>
+//             <Animated.View style={styles.swipeBar}>
+//               <View style={styles.handleBar} />
+//             </Animated.View>
+//           </GestureDetector>
+//         </View>
+//       </SafeAreaView>
+//     </>
+//   );
+// }
+
+// // Assuming ZoomControls remains unchanged, here's a placeholder
+// const ZoomControls = ({ setZoom, setShowZoomControls, zoom }: any) => {
+//   // Placeholder implementation (use the previous ZoomControls.tsx if needed)
+//   return <View />;
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+//     backgroundColor: "transparent",
+//   },
+//   cameraContainer: {
+//     flex: 1,
+//     position: "absolute",
+//     top: 0,
+//     left: 0,
+//     right: 0,
+//     bottom: 0,
+//     zIndex: 0,
+//   },
+//   gridOverlay: {
+//     ...StyleSheet.absoluteFillObject,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   gridCircle: {
+//     width: 200,
+//     height: 200,
+//     borderRadius: 100,
+//     borderWidth: 1,
+//     borderColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   gridLineHorizontal: {
+//     position: "absolute",
+//     width: "100%",
+//     height: 1,
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   gridLineVertical: {
+//     position: "absolute",
+//     width: 1,
+//     height: "100%",
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   focusArea: {
+//     position: "absolute",
+//     width: 100,
+//     height: 100,
+//     borderWidth: 2,
+//     borderColor: "red",
+//   },
+//   infoOverlay: {
+//     position: "absolute",
+//     bottom: 0,
+//     right: 0,
+//     padding: 10,
+//     zIndex: 1,
+//   },
+//   zoomControllerContainer: {
+//     position: "absolute",
+//     top: 20,
+//     left: 20,
+//     flexDirection: "row",
+//     alignItems: "center",
+//     zIndex: 10,
+//   },
+//   gearButton: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 20,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginRight: 10,
+//   },
+//   circularZoom: {
+//     position: "relative",
+//     width: 120,
+//     height: 120,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   circularArc: {
+//     position: "absolute",
+//     width: 100,
+//     height: 100,
+//     borderRadius: 50,
+//     borderWidth: 2,
+//     borderColor: "rgba(255, 255, 255, 0.3)",
+//     borderTopWidth: 0,
+//     borderRightWidth: 0,
+//     transform: [{ rotate: "45deg" }],
+//   },
+//   zoomRangeText: {
+//     position: "absolute",
+//     color: "rgba(255, 255, 255, 0.5)",
+//     fontSize: 12,
+//     transform: [{ rotate: "-45deg" }],
+//   },
+//   zoomRangeTextActive: {
+//     color: "white",
+//     fontWeight: "bold",
+//   },
+//   currentZoomText: {
+//     position: "absolute",
+//     color: "white",
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },
+//   overlay: {
+//     ...StyleSheet.absoluteFillObject,
+//     zIndex: 15,
+//   },
+//   buttonControlsContainer: {
+//     position: "absolute",
+//     bottom: 100,
+//     left: 20,
+//     right: 20,
+//     zIndex: 10,
+//   },
+//   controlRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//     marginVertical: 10,
+//   },
+//   controlLabel: {
+//     color: "white",
+//     fontSize: 16,
+//   },
+//   buttonGroup: {
+//     flexDirection: "row",
+//   },
+//   adjustButton: {
+//     width: 40,
+//     height: 40,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     borderRadius: 20,
+//     marginHorizontal: 5,
+//   },
+//   buttonText: {
+//     color: "white",
+//     fontSize: 18,
+//     fontWeight: "bold",
+//   },
+//   feedbackContainer: {
+//     position: "absolute",
+//     top: "50%",
+//     left: "20%",
+//     right: "20%",
+//     alignItems: "center",
+//     backgroundColor: "rgba(0, 0, 0, 0.7)",
+//     padding: 10,
+//     borderRadius: 10,
+//     zIndex: 10,
+//   },
+//   feedbackText: {
+//     color: "white",
+//     fontSize: 16,
+//   },
+//   feedbackArrow: {
+//     marginTop: 10,
+//   },
+//   navBarContainer: {
+//     position: "absolute",
+//     bottom: 0,
+//     left: 0,
+//     right: 0,
+//     height: "50%",
+//     backgroundColor: "rgba(0,0,0,0.8)",
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     zIndex: 5,
+//   },
+//   modeSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//     paddingTop: 10,
+//   },
+//   modeButton: {
+//     paddingHorizontal: 10,
+//     paddingVertical: 5,
+//     borderRadius: 5,
+//     backgroundColor: "rgba(255, 255, 255, 0.1)",
+//   },
+//   modeButtonActive: {
+//     backgroundColor: "rgba(255, 255, 255, 0.3)",
+//   },
+//   modeText: {
+//     color: "white",
+//     fontSize: 14,
+//   },
+//   middleSection: {
+//     flex: 0.7,
+//     flexDirection: "row",
+//     justifyContent: "space-evenly",
+//   },
+//   controlOverlay: {
+//     position: "absolute",
+//     bottom: 20,
+//     left: 0,
+//     right: 0,
+//     alignItems: "center",
+//     zIndex: 10,
+//     flexDirection: "column",
+//     justifyContent: "center",
+//   },
+//   swipeBar: {
+//     marginTop: 10,
+//     width: 60,
+//     height: 30,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     zIndex: 11,
+//   },
+//   handleBar: {
+//     width: 40,
+//     height: 4,
+//     backgroundColor: "white",
+//     borderRadius: 2,
+//   },
+// });
+
+////////////////////////////
+
+zoomControllerContainer
+
+
+
+// import {
+//   PinchGestureHandler,
+//   PinchGestureHandlerGestureEvent,
+// } from "react-native-gesture-handler";
+// import Animated, {
+//   useAnimatedGestureHandler,
+//   useAnimatedStyle,
+//   useSharedValue,
+//   withTiming,
+//   runOnJS,
+// } from "react-native-reanimated";
+// import { StyleSheet } from "react-native";
+
+// const MIN_ZOOM = 1;
+// const MAX_ZOOM = 10;
+// const ZOOM_STEP = 0.1;
+
+// export default function ZoomControls({
+//   setZoom,
+//   setShowZoomControls,
+//   zoom,
+// }: {
+//   setZoom: (zoom: number) => void;
+//   setShowZoomControls: (show: boolean) => void;
+//   zoom: number;
+// }) {
+//   const baseScale = useSharedValue(1);
+//   const pinchScale = useSharedValue(1);
+//   const lastScale = useSharedValue(1);
+//   const displayZoom = useSharedValue(zoom);
+
+//   // Handle pinch gesture with smooth updates
+//   const onPinchGestureEvent = useAnimatedGestureHandler<PinchGestureHandlerGestureEvent>({
+//     onStart: () => {
+//       console.log("Pinch started");
+//       baseScale.value = lastScale.value;
+//       displayZoom.value = zoom; // Set initial display value
+//     },
+//     onActive: (event) => {
+//       console.log("Pinch active, scale:", event.scale);
+//       pinchScale.value = event.scale;
+//       const newZoom = baseScale.value * pinchScale.value * zoom;
+//       const clampedZoom = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
+//       displayZoom.value = clampedZoom; // Update display in real-time
+//       runOnJS(setZoom)(clampedZoom);
+//     },
+//     onEnd: () => {
+//       console.log("Pinch ended");
+//       lastScale.value = baseScale.value * pinchScale.value;
+//       pinchScale.value = withTiming(1, { duration: 100 }); // Reset smoothly
+//       displayZoom.value = zoom; // Ensure display matches final zoom
+//     },
+//   });
+
+//   // Animated style for zoom display
+//   const zoomDisplayStyle = useAnimatedStyle(() => ({
+//     opacity: pinchScale.value !== 1 ? 1 : 0,
+//     transform: [{ scale: pinchScale.value !== 1 ? 1 : 0.8 }],
+//   }));
+
+//   // Handle manual zoom
+//   const handleZoom = (delta: number) => {
+//     const newZoom = Math.min(Math.max(zoom + delta * ZOOM_STEP, MIN_ZOOM), MAX_ZOOM);
+//     setZoom(newZoom);
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       <PinchGestureHandler onGestureEvent={onPinchGestureEvent}>
+//         <Animated.View style={styles.zoomArea}>
+//           <Animated.View
+//             style={[
+//               styles.zoomDisplay,
+//               zoomDisplayStyle,
+//             ]}
+//           >
+//             <Text style={styles.zoomText}>{`x${displayZoom.value.toFixed(1)}`}</Text>
+//           </Animated.View>
+//         </Animated.View>
+//       </PinchGestureHandler>
+//       {/* Manual Zoom Controls */}
+//       <View style={styles.manualControls}>
+//         <TouchableOpacity
+//           onPress={() => handleZoom(-1)}
+//           style={styles.zoomButton}
+//         >
+//           <Text style={styles.buttonText}>-</Text>
+//         </TouchableOpacity>
+//         <TouchableOpacity
+//           onPress={() => handleZoom(1)}
+//           style={styles.zoomButton}
+//         >
+//           <Text style={styles.buttonText}>+</Text>
+//         </TouchableOpacity>
+//       </View>
+//       <TouchableOpacity
+//         onPress={() => setShowZoomControls(false)}
+//         style={styles.closeButton}
+//       >
+//         <Text style={styles.closeText}>X</Text>
+//       </TouchableOpacity>
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     backgroundColor: "rgba(0, 0, 0, 0.7)",
+//     padding: 20,
+//     borderRadius: 10,
+//   },
+//   zoomArea: {
+//     width: "100%",
+//     height: "60%",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   zoomDisplay: {
+//     backgroundColor: "rgba(0, 0, 0, 0.8)",
+//     padding: 10,
+//     borderRadius: 8,
+//     position: "absolute",
+//   },
+//   zoomText: {
+//     color: "white",
+//     fontSize: 24,
+//     fontWeight: "bold",
+//   },
+//   manualControls: {
+//     flexDirection: "row",
+//     marginTop: 20,
+//   },
+//   zoomButton: {
+//     width: 50,
+//     height: 50,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginHorizontal: 10,
+//     borderRadius: 25,
+//   },
+//   buttonText: {
+//     color: "white",
+//     fontSize: 20,
+//   },
+//   closeButton: {
+//     position: "absolute",
+//     bottom: 20,
+//     width: 50,
+//     height: 50,
+//     borderRadius: 25,
+//     backgroundColor: "#ffffff30",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   closeText: {
+//     color: "white",
+//     fontWeight: "600",
+//   },
+// });
+
+// import React from 'react';
+// import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+// import { Ionicons } from '@expo/vector-icons'; // Icon library
+
+// // ZoomController props
+// interface ZoomControllerProps {
+//   zoom: number;
+//   setZoom: (value: number) => void;
+// }
+
+// const ZoomController: React.FC<ZoomControllerProps> = ({ zoom, setZoom }) => {
+//   // Update the zoom value based on user interaction
+//   const increaseZoom = () => {
+//     if (zoom < 10) {
+//       setZoom(zoom + 0.2); // Increment zoom by 0.2
+//     }
+//   };
+
+//   const decreaseZoom = () => {
+//     if (zoom > 1) {
+//       setZoom(zoom - 0.2); // Decrement zoom by 0.2
+//     }
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       {/* Zoom Level Text */}
+//       <Text style={styles.zoomText}>Zoom: {zoom.toFixed(1)}x</Text>
+
+//       {/* Ruler-like Zoom Control */}
+//       <View style={styles.rulerContainer}>
+//         {[...Array(5)].map((_, index) => {
+//           const zoomLevel = (index + 1) * 0.2;
+//           return (
+//             <View
+//               key={zoomLevel}
+//               style={[
+//                 styles.dot,
+//                 {
+//                   opacity: zoomLevel <= zoom ? 1 : 0.3, // Change opacity based on zoom level
+//                   transform: [{ scale: zoomLevel <= zoom ? 1.5 : 1 }],
+//                 },
+//               ]}
+//             />
+//           );
+//         })}
+//       </View>
+
+//       {/* Zoom In/Out Buttons */}
+//       <View style={styles.buttonContainer}>
+//         <TouchableOpacity style={styles.button} onPress={decreaseZoom}>
+//           <Ionicons name="remove" size={30} color="white" />
+//         </TouchableOpacity>
+//         <TouchableOpacity style={styles.button} onPress={increaseZoom}>
+//           <Ionicons name="add" size={30} color="white" />
+//         </TouchableOpacity>
+//       </View>
+//     </View>
+//   );
+// };
+
+// // Styles for the ZoomController
+// const styles = StyleSheet.create({
+//   container: {
+//     position: 'absolute',
+//     top: 50,
+//     left: 20,
+//     alignItems: 'center',
+//   },
+//   zoomText: {
+//     color: 'white',
+//     fontSize: 18,
+//     marginBottom: 10,
+//   },
+//   rulerContainer: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     width: 120,
+//     marginBottom: 10,
+//   },
+//   dot: {
+//     width: 10,
+//     height: 10,
+//     borderRadius: 5,
+//     backgroundColor: 'white',
+//     marginHorizontal: 3,
+//     transform:'all 0.3s',
+//     // transition: 'all 0.3s',
+//   },
+//   buttonContainer: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     width: 120,
+//   },
+//   button: {
+//     padding: 10,
+//     backgroundColor: 'rgba(255, 255, 255, 0.3)',
+//     borderRadius: 10,
+//   },
+// });
+
+// export default ZoomController;z
+
+
+//////////////////
+
+// import {
+//   Text,
+//   TouchableOpacity,
+//   useWindowDimensions,
+//   View,
+// } from "react-native";
+// import { TouchableHighlight } from "react-native-gesture-handler";
+// import Animated, { BounceIn } from "react-native-reanimated";
+
+// const MIN_ZOOM = 1;
+// const MAX_ZOOM = 128;
+// const NEUTRAL_ZOOM = 1;
+// const zoomOptions = [1, 2, 3, 4, 5];
+
+// export default function ZoomControls({
+//   setZoom,
+//   setShowZoomControls,
+//   zoom,
+// }: {
+//   setZoom: (zoom: number) => void;
+//   setShowZoomControls: (show: boolean) => void;
+//   zoom: number;
+// }) {
+//   const { width, height } = useWindowDimensions();
+//   const radius = Math.min(width, height - 100) * 0.35; // Adjust this value to change circle size
+
+//   const handleZoomPress = (zoomFactor: number) => {
+//     if (zoomFactor === -1) {
+//       // Reset to neutral zoom
+//       setZoom(NEUTRAL_ZOOM);
+//     } else {
+//       // Calculate new zoom value
+//       const newZoom = Math.min(Math.max(zoomFactor, MIN_ZOOM), MAX_ZOOM);
+//       setZoom(newZoom);
+//     }
+//   };
+
+//   return (
+//     <View style={{ flex: 1, padding: 10 }}>
+//       {zoomOptions.map((z, i) => {
+//         const angle = (i / zoomOptions.length / 3) * 2 * Math.PI - Math.PI / 2; // Start at 12 o'clock
+//         const x = Math.cos(angle) * radius + 40;
+//         const y = Math.sin(angle) * radius + height / 4;
+
+//         return (
+//           <Animated.View
+//             key={i}
+//             entering={BounceIn.delay(i * 100)}
+//             style={{
+//               position: "absolute",
+//               left: x,
+//               top: y,
+//             }}
+//           >
+//             <TouchableHighlight
+//               onPress={() => handleZoomPress(z)}
+//               style={{
+//                 width: 50,
+//                 height: 50,
+//                 borderRadius: 25,
+//                 backgroundColor: zoom === z ? "#ffffff" : "#ffffff30",
+//                 justifyContent: "center",
+//                 alignItems: "center",
+//               }}
+//             >
+//               <Text
+//                 style={{
+//                   color: zoom === z ? "black" : "white",
+//                   fontWeight: "600",
+//                 }}
+//               >
+//                 {z}x
+//               </Text>
+//             </TouchableHighlight>
+//           </Animated.View>
+//         );
+//       })}
+
+//       <TouchableOpacity
+//         onPress={() => setShowZoomControls(false)}
+//         style={{
+//           width: 50,
+//           height: 50,
+//           borderRadius: 25,
+//           backgroundColor: "#ffffff30",
+//           justifyContent: "center",
+//           alignItems: "center",
+//           position: "absolute",
+//           left: 30,
+//           top: height / 4,
+//         }}
+//       >
+//         <Text style={{ color: "white", fontWeight: "600" }}>X</Text>
+//       </TouchableOpacity>
+//     </View>
+//   );
+// }
+
+/////////////////////////////////
+HomeScreen
+
+// import React, { useState } from "react";
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   TouchableOpacity,
+//   Switch,
+//   ImageBackground,
+//   Platform,
+//   SafeAreaView,
+// } from "react-native";
+// import { Ionicons } from "@expo/vector-icons"; // Use any icon library of your choice
+// import ZoomController from "@/components/ZoomControls";
+// import { StatusBar } from "expo-status-bar";
+// import ZoomControls from "@/components/ZoomControls";
+// import {
+//   Camera,
+//   useCameraDevice,
+//   useCameraDevices,
+//   useCameraPermission,
+// } from "react-native-vision-camera";
+// import { Redirect, useRouter } from "expo-router";
+// import { BlurView } from "expo-blur";
+// import ObscuraButton from "@/components/ObscuraButton";
+
+// const HomeScreen = () => {
+//   // const [exposure, setExposure] = useState(0.5); // Default exposure value
+//   const [focus, setFocus] = useState(0.5); // Default focus value
+//   // const [zoom, setZoom] = useState(1); // Default zoom value
+//   const [aiMode, setAiMode] = useState(false); // Toggle AI mode
+//   const [angleMode, setAngleMode] = useState(false); // Toggle 360 angle mode
+//   // const [flash, setFlash] = useState(false); // Flash toggle
+
+//   /////
+//   const { hasPermission } = useCameraPermission();
+//   const microphonePermission = Camera.getMicrophonePermissionStatus();
+//   const [showZoomControls, setShowZoomControls] = React.useState(false);
+//   const [showExposureControls, setShowExposureControls] = React.useState(false);
+
+//   const camera = React.useRef<Camera>(null);
+//   const devices = useCameraDevices();
+//   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">(
+//     "back"
+//   );
+//   const device = useCameraDevice(cameraPosition);
+//   const [zoom, setZoom] = React.useState(device?.neutralZoom);
+//   const [exposure, setExposure] = React.useState(0);
+//   const [flash, setFlash] = React.useState<"off" | "on">("off");
+//   const [torch, setTorch] = React.useState<"off" | "on">("off");
+//   const redirectToPermissions =
+//     !hasPermission || microphonePermission === "not-determined";
+
+//   const router = useRouter();
+
+//   // const takePicture = async () => {
+//   //   try {
+//   //     if (camera.current == null) throw new Error("Camera ref is null!");
+
+//   //     console.log("Taking photo...");
+//   //     const photo = await camera.current.takePhoto({
+//   //       flash: flash,
+//   //       enableShutterSound: false,
+//   //     });
+//   //     router.push({
+//   //       pathname: "/media",
+//   //       params: { media: photo.path, type: "photo" },
+//   //     });
+//   //     // onMediaCaptured(photo, 'photo')
+//   //   } catch (e) {
+//   //     console.error("Failed to take photo!", e);
+//   //   }
+//   // };
+
+//   // Take a picture
+//   const takePicture = async () => {
+//     try {
+//       if (camera.current == null) throw new Error("Camera ref is null!");
+//       console.log("Taking photo...");
+//       const photo = await camera.current.takePhoto({
+//         flash: flash,
+//         enableShutterSound: false,
+//       });
+//       router.push({
+//         pathname: "/media",
+//         params: { media: photo.path, type: "photo" },
+//       });
+//     } catch (e) {
+//       console.error("Failed to take photo!", e);
+//     }
+//   };
+
+//   if (redirectToPermissions) return <Redirect href={"/permissions"} />;
+//   if (!device) return <></>;
+
+//   /////
+
+//   // Handle toggling AI Mode
+//   const toggleAiMode = () => setAiMode(!aiMode);
+
+//   // Handle toggling 360 Angle Mode
+//   const toggleAngleMode = () => setAngleMode(!angleMode);
+
+//   // Handle toggling Zoom Controls visibility (via Settings button)
+//   const toggleZoomControls = () => setShowZoomControls(!showZoomControls);
+
+//   // Handle toggling flash
+//   // const toggleFlash = () => setFlash(!flash);
+
+//   return (
+//     <>
+//       <View style={styles.container}>
+//         {/* Background Camera Feed */}
+//         <StatusBar />
+//         <SafeAreaView style={styles.container}>
+//           <View style={{ flex: 2, borderRadius: 10, overflow: "hidden" }}>
+//             <Camera
+//               ref={camera}
+//               style={{ flex: 1 }}
+//               photo={true}
+//               zoom={zoom}
+//               device={device!}
+//               isActive={true}
+//               resizeMode="cover"
+//               preview={true}
+//               exposure={exposure}
+//               torch={torch}
+//               // fps={60}
+//             />
+//             <BlurView
+//               intensity={100}
+//               tint="dark"
+//               style={{
+//                 flex: 1,
+//                 position: "absolute",
+//                 bottom: 0,
+//                 right: 0,
+//                 padding: 10,
+//               }}
+//               experimentalBlurMethod="dimezisBlurView"
+//             >
+//               <Text
+//                 style={{
+//                   color: "white",
+//                 }}
+//               >
+//                 Exposure: {exposure} | Zoom: x{zoom}
+//               </Text>
+//             </BlurView>
+//           </View>
+
+//           {/* Camera Mode Selection */}
+//           <View style={styles.modeSelection}>
+//             <TouchableOpacity style={styles.modeButton}>
+//               <Text style={styles.modeText}>Photo</Text>
+//             </TouchableOpacity>
+//             <TouchableOpacity style={styles.modeButton}>
+//               <Text style={styles.modeText}>Video</Text>
+//             </TouchableOpacity>
+//             <TouchableOpacity style={styles.modeButton}>
+//               <Text style={styles.modeText}>Portrait</Text>
+//             </TouchableOpacity>
+//             <TouchableOpacity style={styles.modeButton}>
+//               <Text style={styles.modeText}>Panorama</Text>
+//             </TouchableOpacity>
+//           </View>
+
+//           {/* Sliders */}
+//           <View style={styles.sliderContainer}>
+//             {/* <Text>Exposure</Text>
+//         <SlideInRight
+//           style={styles.slider}
+//           minimumValue={0}
+//           maximumValue={1}
+//           value={exposure}
+//           onValueChange={setExposure}
+//         />
+//         <Text>Focus</Text>
+//         <Slider
+//           style={styles.slider}
+//           minimumValue={0}
+//           maximumValue={1}
+//           value={focus}
+//           onValueChange={setFocus}
+//         />
+//         <Text>Zoom</Text>
+//         <Slider
+//           style={styles.slider}
+//           minimumValue={1}
+//           maximumValue={5}
+//           value={zoom}
+//           onValueChange={setZoom}
+//         /> */}
+//             {/* Zoom Controller Component */}
+//             {/* Zoom Controller */}
+//           </View>
+
+//           {/* AI Mode Toggle */}
+//           <View style={styles.toggleContainer}>
+//             <Text style={styles.texts}>AI Mode</Text>
+//             <Switch
+//               style={styles.switchs}
+//               value={aiMode}
+//               onValueChange={toggleAiMode}
+//             />
+//             <Text style={styles.texttip}>{aiMode ? "ON" : "OFF"}</Text>
+//           </View>
+//           {/* 360° Angle Mode Toggle */}
+//           <View style={styles.toggleContainer}>
+//             <Text style={styles.texts}>360° Angle Mode</Text>
+//             <Switch value={angleMode} onValueChange={toggleAngleMode} />
+//             <Text style={styles.texttip}>{angleMode ? "ON" : "OFF"}</Text>
+//           </View>
+//           <View>
+//             {showZoomControls ? (
+//               <ZoomControls
+//                 setZoom={setZoom}
+//                 setShowZoomControls={setShowZoomControls}
+//                 zoom={zoom ?? 1}
+//               />
+//             ) : null}
+//           </View>
+
+//           {/* Flash Icon */}
+//           <View style={styles.flashContainer}>
+//             {/* <TouchableOpacity   onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))} >
+//           <Ionicons
+//             name={flash ? 'flash' : 'flash-off'}
+//             size={32}
+//             color="white"
+//           />
+//         </TouchableOpacity> */}
+//             {/* <ObscuraButton
+//                 iconName={torch === "on" ? "flashlight" : "flashlight-outline"}
+//                 onPress={() => setTorch((t) => (t === "off" ? "on" : "off"))}
+//                 containerStyle={{ alignSelf: "center" }}
+//               /> */}
+//             <ObscuraButton
+//               iconName={flash === "on" ? "flash-sharp" : "flash-off-sharp"}
+//               onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+//               containerStyle={{ alignSelf: "center" }}
+//             />
+//           </View>
+
+//           {/* Settings Icon */}
+//           <View style={styles.settingsContainer}>
+//             {/* <TouchableOpacity onPress={toggleZoomControls}>
+//               <Ionicons name="magnet-sharp" size={38} color="white" />
+//             </TouchableOpacity> */}
+//             <ObscuraButton
+//               iconName="magnet-sharp"
+//               onPress={() => setShowZoomControls((s) => !s)}
+//               containerStyle={{ alignSelf: "center" }}
+//             />
+//           </View>
+
+//           {/* Capture Button */}
+//           <View style={styles.captureButtonContainer}>
+//             <TouchableOpacity
+//               style={styles.captureButton}
+//               onPress={takePicture}
+//             >
+//               <Ionicons name="camera" size={48} color="white" />
+//             </TouchableOpacity>
+//           </View>
+//         </SafeAreaView>
+//       </View>
+//     </>
+//   );
+// };
+
+// // Styles
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "transparent",
+//     justifyContent: "flex-end",
+//     paddingTop: 20,
+//     paddingBottom: 40,
+//   },
+
+//   cameraFeed: {
+//     flex: 1,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   focusArea: {
+//     width: 150,
+//     height: 150,
+//     borderColor: "red",
+//     borderWidth: 2,
+//     position: "absolute",
+//   },
+//   modeSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     position: "absolute",
+//     bottom: 130,
+//     width: "100%",
+//   },
+//   modeButton: {
+//     backgroundColor: "rgb(255, 255, 255)",
+//     padding: 10,
+//     borderRadius: 5,
+//   },
+//   modeText: {
+//     color: "black",
+//     fontSize: 16,
+//   },
+//   sliderContainer: {
+//     paddingHorizontal: 20,
+//     marginBottom: 30,
+//   },
+//   slider: {
+//     width: "100%",
+//     height: 40,
+//     marginBottom: 10,
+//   },
+//   toggleContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     // justifyContent: "",
+//     marginBottom: 5,
+//     marginHorizontal: 20,
+//     bottom: -140,
+//     justifyContent: "flex-end",
+//   },
+//   flashContainer: {
+//     position: "absolute",
+//     top: 50,
+//     right: 20,
+//   },
+//   settingsContainer: {
+//     position: "absolute",
+//     top: 50,
+//     left: 20,
+//   },
+//   captureButtonContainer: {
+//     alignItems: "center",
+//     marginBottom: 40,
+//     bottom: -35,
+//   },
+//   captureButton: {
+//     width: 70,
+//     height: 70,
+//     borderRadius: 35,
+//     backgroundColor: "rgb(26, 110, 158)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   texts: { color: "white", fontSize: 10 },
+//   texttip: { color: "white", fontSize: 7 },
+//   switchs: { shadowColor: "white" },
+// });
+
+// export default HomeScreen;
+
+///////////////////////////////

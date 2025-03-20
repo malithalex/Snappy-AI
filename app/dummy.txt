@@ -2594,3 +2594,777 @@ HomeScreen
 // export default HomeScreen;
 
 ///////////////////////////////
+
+// import React, { useState } from "react";
+// import { View, Text, Switch, TouchableOpacity, StyleSheet } from "react-native";
+// import { Ionicons } from "@expo/vector-icons";
+
+// const CameraNavPanel: React.FC = () => {
+//   const [aiMode, setAiMode] = useState<boolean>(false);
+//   const [angle360, setAngle360] = useState<boolean>(false);
+//   const [awb, setAwb] = useState<number>(50);
+//   const [ae, setAe] = useState<number>(50);
+//   const [af, setAf] = useState<number>(50);
+
+//   type ControlType = "awb" | "ae" | "af";
+//   type ActionType = "increase" | "decrease";
+
+//   const adjustValue = (type: ControlType, action: ActionType): void => {
+//     const change = action === "increase" ? 5 : -5;
+//     if (type === "awb")
+//       setAwb((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "ae")
+//       setAe((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "af")
+//       setAf((prev) => Math.max(0, Math.min(100, prev + change)));
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       <View style={styles.modeSelection}>
+//         <TouchableOpacity style={styles.modeButton}>
+//           <Text style={styles.modeText}>Photo</Text>
+//         </TouchableOpacity>
+//         <TouchableOpacity style={styles.modeButton}>
+//           <Text style={styles.modeText}>Video</Text>
+//         </TouchableOpacity>
+//         <TouchableOpacity style={styles.modeButton}>
+//           <Text style={styles.modeText}>Portrait</Text>
+//         </TouchableOpacity>
+//         <TouchableOpacity style={styles.modeButton}>
+//           <Text style={styles.modeText}>Panorama</Text>
+//         </TouchableOpacity>
+//       </View>
+
+//       {(["awb", "ae", "af"] as ControlType[]).map((control) => (
+//         <View key={control} style={styles.controlContainer}>
+//           <Text style={styles.controlLabel}>{control.toUpperCase()}</Text>
+//           <TouchableOpacity
+//             onPress={() => adjustValue(control, "decrease")}
+//             style={styles.controlButton}
+//           >
+//             <Ionicons name="remove-sharp" size={24} color="white" />
+//           </TouchableOpacity>
+//           <Text style={styles.controlValue}>
+//             {control === "awb" ? awb : control === "ae" ? ae : af}
+//           </Text>
+//           <TouchableOpacity
+//             onPress={() => adjustValue(control, "increase")}
+//             style={styles.controlButton}
+//           >
+//             <Ionicons name="add" size={24} color="white" />
+//           </TouchableOpacity>
+//         </View>
+//       ))}
+
+//       <View style={styles.iconContainer}>
+//         <Ionicons name="refresh-circle" size={40} color="white" />
+//         <Ionicons name="sync-circle" size={40} color="white" />
+//       </View>
+
+//       {/* <TouchableOpacity style={styles.shutterButton} /> */}
+
+//       {/* <View style={styles.switchContainer}>
+//         <Text style={styles.switchText}>AI Mode</Text>
+//         <Switch value={aiMode} onValueChange={setAiMode} />
+//       </View>
+
+//       <View style={styles.switchContainer}>
+//         <Text style={styles.switchText}>360 Angles</Text>
+//         <Switch value={angle360} onValueChange={setAngle360} />
+//       </View> */}
+//     </View>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     backgroundColor: "transparent",
+//     // borderRadius: 20,
+//     paddingLeft: 20,
+//     paddingRight: 20,
+//     // alignItems: "center",
+//     width: "100%",
+//     // height: 450,
+//   },
+//   topRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     width: "100%",
+//     marginBottom: 20,
+//   },
+//   modeSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     alignItems: "center",
+//     position: "absolute",
+//     bottom: 275,
+//     width: "107%",
+//     // paddingBottom: 20,
+//     // paddingTop: 20,
+//   },
+//   modeButton: {
+//     backgroundColor: "rgb(255, 255, 255)",
+//     padding: 5,
+//     borderRadius: 35,
+//   },
+//   modeText: {
+//     color: "rgb(0, 0, 0)",
+//     fontSize: 16,
+//   },
+//   controlContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     marginBottom: 10,
+//   },
+//   controlLabel: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 40,
+//   },
+//   controlButton: {
+//     backgroundColor: "#444",
+//     padding: 2,
+//     borderRadius: 50,
+//     marginHorizontal: 5,
+//   },
+//   controlValue: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 30,
+//     textAlign: "center",
+//   },
+//   iconContainer: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     width: "80%",
+//     marginBottom: 20,
+//   },
+//   shutterButton: {
+//     width: 70,
+//     height: 70,
+//     backgroundColor: "#fff",
+//     borderRadius: 35,
+//     marginBottom: 20,
+//   },
+//   switchContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     width: "80%",
+//     marginBottom: 10,
+//   },
+//   switchText: {
+//     color: "#fff",
+//     fontSize: 16,
+//   },
+// });
+
+// export default CameraNavPanel;
+
+// import React, { useState } from "react";
+// import {
+//   View,
+//   Text,
+//   Switch,
+//   TouchableOpacity,
+//   StyleSheet,
+//   useWindowDimensions,
+// } from "react-native";
+// import { Ionicons } from "@expo/vector-icons";
+
+// const CameraNavPanel: React.FC = () => {
+//   const { width, height } = useWindowDimensions(); // Get screen dimensions dynamically
+//   const [aiMode, setAiMode] = useState<boolean>(false);
+//   const [angle360, setAngle360] = useState<boolean>(false);
+//   const [awb, setAwb] = useState<number>(50);
+//   const [ae, setAe] = useState<number>(50);
+//   const [af, setAf] = useState<number>(50);
+//   //   const [aiMode, setAiMode] = useState(false); // Toggle AI mode
+//   const [angleMode, setAngleMode] = useState(false); // Toggle 360 angle mode
+//   const toggleAiMode = () => setAiMode(!aiMode);
+//   const toggleAngleMode = () => setAngleMode(!angleMode);
+
+//   type ControlType = "awb" | "ae" | "af";
+//   type ActionType = "increase" | "decrease";
+
+//   const adjustValue = (type: ControlType, action: ActionType): void => {
+//     const change = action === "increase" ? 5 : -5;
+//     if (type === "awb")
+//       setAwb((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "ae")
+//       setAe((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "af")
+//       setAf((prev) => Math.max(0, Math.min(100, prev + change)));
+//   };
+
+//   return (
+//     <View style={[styles.container, { paddingHorizontal: width * 0.05 }]}>
+//       <View style={styles.modeSelection}>
+//         {["Photo", "Video", "Portrait", "Panorama"].map((mode) => (
+//           <TouchableOpacity
+//             key={mode}
+//             style={[styles.modeButton, { padding: width * 0.02 }]}
+//           >
+//             <Text style={styles.modeText}>{mode}</Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+
+//       <View style={styles.controlsWrapper}>
+//         {(["awb", "ae", "af"] as ControlType[]).map((control) => (
+//           <View key={control} style={styles.controlContainer}>
+//             <Text style={styles.controlLabel}>{control.toUpperCase()}</Text>
+//             <TouchableOpacity
+//               onPress={() => adjustValue(control, "decrease")}
+//               style={styles.controlButton}
+//             >
+//               <Ionicons name="remove-sharp" size={width * 0.05} color="white" />
+//             </TouchableOpacity>
+//             <Text style={styles.controlValue}>
+//               {control === "awb" ? awb : control === "ae" ? ae : af}
+//             </Text>
+//             <TouchableOpacity
+//               onPress={() => adjustValue(control, "increase")}
+//               style={styles.controlButton}
+//             >
+//               <Ionicons name="add" size={width * 0.05} color="white" />
+//             </TouchableOpacity>
+//           </View>
+//         ))}
+//       </View>
+
+//       <View style={styles.toggleContainer}>
+//         <Text style={styles.texts}>AI Mode</Text>
+//         <Switch
+//           style={styles.switchs}
+//           value={aiMode}
+//           onValueChange={toggleAiMode}
+//         />
+//         <Text style={styles.texttip}>{aiMode ? "ON" : "OFF"}</Text>
+//       </View>
+//       <View style={styles.toggleContainer}>
+//         <Text style={styles.texts}>360° Angle Mode</Text>
+//         <Switch value={angleMode} onValueChange={toggleAngleMode} />
+//         <Text style={styles.texttip}>{angleMode ? "ON" : "OFF"}</Text>
+//       </View>
+
+//       <View style={styles.iconContainer}>
+//         <Ionicons name="refresh-circle" size={width * 0.12} color="white" />
+//         <Ionicons name="sync-circle" size={width * 0.12} color="white" />
+//       </View>
+//     </View>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     backgroundColor: "transparent",
+//     width: "100%",
+//     alignItems: "center",
+//   },
+//   modeSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     alignItems: "center",
+//     width: "100%",
+//     marginBottom: 20,
+//   },
+//   modeButton: {
+//     backgroundColor: "rgb(255, 255, 255)",
+//     borderRadius: 35,
+//   },
+//   modeText: {
+//     color: "rgb(0, 0, 0)",
+//     fontSize: 16,
+//   },
+//   controlsWrapper: {
+//     flexDirection: "column",
+//     alignItems: "center",
+//     width: "100%",
+//   },
+//   controlContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "flex-start",
+//     width: "100%",
+//     marginBottom: 10,
+//   },
+//   controlLabel: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 40,
+//     textAlign: "center",
+//   },
+//   controlButton: {
+//     backgroundColor: "#444",
+//     padding: 8,
+//     borderRadius: 50,
+//     marginHorizontal: 5,
+//   },
+//   controlValue: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 30,
+//     textAlign: "center",
+//   },
+//   iconContainer: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     width: "80%",
+//     marginTop: 20,
+//   },
+//   toggleContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     marginBottom: 5,
+//     marginHorizontal: 20,
+//     bottom: -140,
+//     justifyContent: "flex-end",
+//   },
+//   texts: { color: "white", fontSize: 12 },
+//   texttip: { color: "white", fontSize: 8 },
+//   switchs: { shadowColor: "white" },
+// });
+
+// export default CameraNavPanel;
+
+// import React, { useState } from "react";
+// import {
+//   View,
+//   Text,
+//   Switch,
+//   TouchableOpacity,
+//   StyleSheet,
+//   useWindowDimensions,
+// } from "react-native";
+// import { Ionicons } from "@expo/vector-icons";
+
+// const CameraNavPanel: React.FC = () => {
+//   const { width } = useWindowDimensions(); // Get screen width for responsiveness
+//   const [aiMode, setAiMode] = useState<boolean>(false);
+//   const [angleMode, setAngleMode] = useState<boolean>(false);
+//   const [awb, setAwb] = useState<number>(50);
+//   const [ae, setAe] = useState<number>(50);
+//   const [af, setAf] = useState<number>(50);
+
+//   type ControlType = "awb" | "ae" | "af";
+//   type ActionType = "increase" | "decrease";
+
+//   const adjustValue = (type: ControlType, action: ActionType): void => {
+//     const change = action === "increase" ? 5 : -5;
+//     if (type === "awb")
+//       setAwb((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "ae")
+//       setAe((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "af")
+//       setAf((prev) => Math.max(0, Math.min(100, prev + change)));
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       <View style={styles.modeSelection}>
+//         {["Photo", "Video", "Portrait", "Panorama"].map((mode) => (
+//           <TouchableOpacity
+//             key={mode}
+//             style={[styles.modeButton, { padding: width * 0.02 }]}
+//           >
+//             <Text style={styles.modeText}>{mode}</Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+
+//       <View style={styles.controlsWrapper}>
+//         {(["awb", "ae", "af"] as ControlType[]).map((control) => (
+//           <View key={control} style={styles.controlContainer}>
+//             <Text style={styles.controlLabel}>{control.toUpperCase()}</Text>
+//             <TouchableOpacity
+//               onPress={() => adjustValue(control, "decrease")}
+//               style={styles.controlButton}
+//             >
+//               <Ionicons name="remove-sharp" size={width * 0.05} color="white" />
+//             </TouchableOpacity>
+//             <Text style={styles.controlValue}>
+//               {control === "awb" ? awb : control === "ae" ? ae : af}
+//             </Text>
+//             <TouchableOpacity
+//               onPress={() => adjustValue(control, "increase")}
+//               style={styles.controlButton}
+//             >
+//               <Ionicons name="add" size={width * 0.05} color="white" />
+//             </TouchableOpacity>
+//           </View>
+//         ))}
+//       </View>
+
+//       <View style={styles.togglesWrapper}>
+//         <View style={styles.toggleContainer}>
+//           <Text style={styles.toggleText}>AI Mode</Text>
+//           <Switch value={aiMode} onValueChange={() => setAiMode(!aiMode)} />
+//           <Text style={styles.toggleStatus}>{aiMode ? "ON" : "OFF"}</Text>
+//         </View>
+//         <View style={styles.toggleContainer}>
+//           <Text style={styles.toggleText}>360° Angle Mode</Text>
+//           <Switch
+//             value={angleMode}
+//             onValueChange={() => setAngleMode(!angleMode)}
+//           />
+//           <Text style={styles.toggleStatus}>{angleMode ? "ON" : "OFF"}</Text>
+//         </View>
+//       </View>
+
+//       <View style={styles.iconContainer}>
+//         <Ionicons name="refresh-circle" size={width * 0.12} color="white" />
+//         <Ionicons name="sync-circle" size={width * 0.12} color="white" />
+//       </View>
+//     </View>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     backgroundColor: "transparent",
+//     width: "100%",
+//     alignItems: "center",
+//     paddingHorizontal: "5%",
+//   },
+//   modeSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     alignItems: "center",
+//     width: "100%",
+//     marginBottom: 20,
+//     marginTop: 20,
+//   },
+//   modeButton: {
+//     backgroundColor: "rgb(255, 255, 255)",
+//     borderRadius: 35,
+//   },
+//   modeText: {
+//     color: "rgb(0, 0, 0)",
+//     fontSize: 16,
+//   },
+//   controlsWrapper: {
+//     flexDirection: "column",
+//     // alignItems: "center",
+//     justifyContent: "flex-start",
+//     width: "100%",
+//   },
+//   controlContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "flex-start",
+//     width: "100%",
+//     marginBottom: 10,
+//   },
+//   controlLabel: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 40,
+//     textAlign: "center",
+//   },
+//   controlButton: {
+//     backgroundColor: "#444",
+//     padding: 8,
+//     borderRadius: 50,
+//     marginHorizontal: 5,
+//   },
+//   controlValue: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 30,
+//     textAlign: "center",
+//   },
+//   togglesWrapper: {
+//     width: "100%",
+//     // flexDirection: "column",
+//     // alignItems: "center",
+//     justifyContent: "flex-end",
+//     marginTop: 10,
+//   },
+//   toggleContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     // justifyContent: "space-between",
+//     justifyContent: "flex-end",
+//     // width: "80%",
+//     // marginBottom: 10,
+//     paddingHorizontal: 10,
+//   },
+//   toggleText: {
+//     color: "white",
+//     fontSize: 10,
+//     // flex: 1,
+//   },
+//   toggleStatus: {
+//     color: "white",
+//     fontSize: 8,
+//     marginLeft: 10,
+//   },
+//   iconContainer: {
+//     flexDirection: "row",
+//     // justifyContent: "space-around",
+//     width: "80%",
+//     marginTop: 20,
+//   },
+// });
+
+// export default CameraNavPanel;
+
+// import React, { useState } from "react";
+// import {
+//   View,
+//   Text,
+//   Switch,
+//   TouchableOpacity,
+//   StyleSheet,
+//   useWindowDimensions,
+// } from "react-native";
+// import { Ionicons } from "@expo/vector-icons";
+
+// const CameraNavPanel: React.FC = () => {
+//   const { width } = useWindowDimensions();
+//   const [aiMode, setAiMode] = useState<boolean>(false);
+//   const [angleMode, setAngleMode] = useState<boolean>(false);
+//   const [awb, setAwb] = useState<number>(50);
+//   const [ae, setAe] = useState<number>(50);
+//   const [af, setAf] = useState<number>(50);
+
+//   type ControlType = "awb" | "ae" | "af";
+//   type ActionType = "increase" | "decrease";
+
+//   const adjustValue = (type: ControlType, action: ActionType): void => {
+//     const change = action === "increase" ? 5 : -5;
+//     if (type === "awb")
+//       setAwb((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "ae")
+//       setAe((prev) => Math.max(0, Math.min(100, prev + change)));
+//     if (type === "af")
+//       setAf((prev) => Math.max(0, Math.min(100, prev + change)));
+//   };
+
+//   const objectIcons = [
+//     { id: "flower", name: "flower-outline", label: "Nature" },
+//     { id: "person", name: "person-outline", label: "Person" },
+//     { id: "3d", name: "cube-outline", label: "3D" },
+//     { id: "text", name: "text-outline", label: "Text" },
+//     { id: "car", name: "car-outline", label: "Car" },
+//   ];
+
+//   return (
+//     <View style={styles.container}>
+//       {/* Mode Selection (Row 1) */}
+//       <View style={styles.modeSelection}>
+//         {["Photo", "Video", "Portrait", "Panorama"].map((mode) => (
+//           <TouchableOpacity
+//             key={mode}
+//             style={[styles.modeButton, { padding: width * 0.015 }]}
+//           >
+//             <Text style={styles.modeText}>{mode}</Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+
+//       {/* Object Selection (Row 2) */}
+//       <View style={styles.objectSelection}>
+//         {objectIcons.map((obj) => (
+//           <TouchableOpacity key={obj.id} style={styles.objectButton}>
+//             <Ionicons
+//               name={obj.name as any}
+//               size={width * 0.05}
+//               color="white"
+//             />
+//             <Text style={styles.objectText}>{obj.label}</Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+
+//       {/* Controls + Toggles Grid Layout (Row 3) */}
+//       <View style={styles.controlsAndToggles}>
+//         {/* Controls Section */}
+//         <View style={styles.controlsWrapper}>
+//           {(["awb", "ae", "af"] as ControlType[]).map((control) => (
+//             <View key={control} style={styles.controlContainer}>
+//               <Text style={styles.controlLabel}>{control.toUpperCase()}</Text>
+//               <TouchableOpacity
+//                 onPress={() => adjustValue(control, "decrease")}
+//                 style={styles.controlButton}
+//               >
+//                 <Ionicons
+//                   name="remove-sharp"
+//                   size={width * 0.05}
+//                   color="white"
+//                 />
+//               </TouchableOpacity>
+//               <Text style={styles.controlValue}>
+//                 {control === "awb" ? awb : control === "ae" ? ae : af}
+//               </Text>
+//               <TouchableOpacity
+//                 onPress={() => adjustValue(control, "increase")}
+//                 style={styles.controlButton}
+//               >
+//                 <Ionicons name="add" size={width * 0.05} color="white" />
+//               </TouchableOpacity>
+//             </View>
+//           ))}
+//         </View>
+
+//         {/* Toggle Switches Section */}
+//         <View style={styles.togglesWrapper}>
+//           <View style={styles.toggleContainer}>
+//             <Text style={styles.toggleText}>AI Mode</Text>
+//             <Switch value={aiMode} onValueChange={() => setAiMode(!aiMode)} />
+//             <Text style={styles.toggleStatus}>{aiMode ? "ON" : "OFF"}</Text>
+//           </View>
+//           <View style={styles.toggleContainer}>
+//             <Text style={styles.toggleText}>360° Mode</Text>
+//             <Switch
+//               value={angleMode}
+//               onValueChange={() => setAngleMode(!angleMode)}
+//             />
+//             <Text style={styles.toggleStatus}>{angleMode ? "ON" : "OFF"}</Text>
+//           </View>
+//         </View>
+//       </View>
+
+//       {/* Bottom Icons (Row 4) */}
+//       <View style={styles.iconContainer}>
+//         <Ionicons name="refresh-circle" size={width * 0.12} color="white" />
+//         <Ionicons name="sync-circle" size={width * 0.12} color="white" />
+//       </View>
+//     </View>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     backgroundColor: "transparent",
+//     width: "100%",
+//     alignItems: "center",
+//     paddingHorizontal: "5%",
+//     paddingVertical: "5%",
+//   },
+//   modeSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     alignItems: "center",
+//     width: "100%",
+//     marginBottom: 10,
+//     marginTop: 10,
+//   },
+//   modeButton: {
+//     backgroundColor: "rgb(255, 255, 255)",
+//     borderRadius: 30,
+//   },
+//   modeText: {
+//     color: "rgb(0, 0, 0)",
+//     fontSize: 14,
+//   },
+//   objectSelection: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     width: "100%",
+//     marginBottom: 30,
+//     marginTop: 10,
+//   },
+//   objectButton: {
+//     alignItems: "center",
+//     backgroundColor: "#333",
+//     borderRadius: 60,
+//     padding: 10,
+//   },
+//   objectText: {
+//     color: "white",
+//     fontSize: 10,
+//     marginTop: 3,
+//   },
+//   controlsAndToggles: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     width: "100%",
+//     alignItems: "center",
+//   },
+//   controlsWrapper: {
+//     flex: 2,
+//     flexDirection: "column",
+//     alignItems: "center",
+//   },
+//   controlContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     width: "100%",
+//     marginBottom: 10,
+//   },
+//   controlLabel: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 40,
+//     textAlign: "center",
+//   },
+//   controlButton: {
+//     backgroundColor: "#444",
+//     padding: 8,
+//     borderRadius: 50,
+//     marginHorizontal: 5,
+//   },
+//   controlValue: {
+//     color: "#fff",
+//     fontSize: 12,
+//     width: 30,
+//     textAlign: "center",
+//   },
+//   togglesWrapper: {
+//     flex: 1,
+//     flexDirection: "column",
+//     alignItems: "flex-end",
+//     justifyContent: "flex-start",
+//   },
+//   toggleContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     width: "100%",
+//     marginBottom: 8,
+//     marginRight: 15,
+//   },
+//   toggleText: {
+//     color: "white",
+//     fontSize: 12,
+//   },
+//   toggleStatus: {
+//     color: "white",
+//     fontSize: 12,
+//     marginLeft: 8,
+//   },
+//   iconContainer: {
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//     width: "80%",
+//     marginTop: 10,
+//   },
+// });
+
+// export default CameraNavPanel;
+
+
+////////////////////////////////////
+          {/* <ScrollView
+            horizontal={false}
+            showsHorizontalScrollIndicator={false} // Hide the scroll indicator for a cleaner look
+            style={styles.modeSelectionScroll}
+            contentContainerStyle={styles.modeSelectionContent}
+          > */}
+          {/* <View style={styles.modeSelection}>
+            <TouchableOpacity style={styles.modeButton}>
+              <Text style={styles.modeText}>Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modeButton}>
+              <Text style={styles.modeText}>Video</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modeButton}>
+              <Text style={styles.modeText}>Portrait</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modeButton}>
+              <Text style={styles.modeText}>Panorama</Text>
+            </TouchableOpacity>
+          </View> */}

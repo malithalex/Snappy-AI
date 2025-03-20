@@ -47,7 +47,7 @@ export default function ExposureControls({
           Math.PI / 2 +
           Math.PI / 3; // Start at 3 o'clock
         const radius = 35;
-        const x = Math.cos(angle) * radius + 200;
+        const x = Math.cos(angle) * radius + 220;
         const y = Math.sin(angle) * radius + -320;
 
         return (
@@ -85,7 +85,7 @@ export default function ExposureControls({
           </Animated.View>
         );
       })}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         onPress={() => setShowExposureControls(false)}
         style={{
           width: 50,
@@ -100,7 +100,7 @@ export default function ExposureControls({
         }}
       >
         <Text style={{ color: "white", fontWeight: "600" }}>X</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }

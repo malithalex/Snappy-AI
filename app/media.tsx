@@ -14,27 +14,12 @@ export default function MediaScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {
-        type === "photo" ? (
-          <Image
-            source={{ uri: `file://${media}` }}
-            style={{ width: "100%", height: "80%", resizeMode: "contain" }}
-          />
-        ) : null
-        // <Video source={{ uri: media }} style={{ width: "100%", height: "100%" }} />
-      }
-      <ObscuraButton
-        title="Save to gallery"
-        containerStyle={{ alignSelf: "center" }}
-        onPress={async () => {
-          saveToLibraryAsync(media as string);
-          Alert.alert("Saved to gallery!");
-          router.back();
-        }}
-      />
-      <Link href="/" style={styles.link}>
-        <ThemedText type="link">Delete and go back</ThemedText>
-      </Link>
+      {type === "photo" ? (
+        <Image
+          source={{ uri: `file://${media}` }}
+          style={{ width: "100%", height: "80%", resizeMode: "contain" }}
+        />
+      ) : null}
     </ThemedView>
   );
 }

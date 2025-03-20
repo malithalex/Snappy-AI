@@ -21,7 +21,7 @@ import {
   useCameraDevices,
   useCameraPermission,
 } from "react-native-vision-camera";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, router, useRouter } from "expo-router";
 import { BlurView } from "expo-blur";
 import ObscuraButton from "@/components/ObscuraButton";
 import Animated, {
@@ -38,6 +38,8 @@ import {
 import * as MediaLibrary from "expo-media-library";
 import MediaScreen from "./media";
 import ExposureControls from "@/components/ExposureControls";
+import CameraNavPanel from "./CameranavPanel";
+// import CameraNavPanel from "./navpannel";
 // import CustomizedSlider from "@/components/LevelControl";
 
 const HomeScreen = () => {
@@ -49,21 +51,42 @@ const HomeScreen = () => {
   const [showZoomControls, setShowZoomControls] = React.useState(false);
   const [showExposureControls, setShowExposureControls] = React.useState(false);
   const { width } = useWindowDimensions();
+  const router = useRouter();
+
+  const [selectedMode, setSelectedMode] = useState<string>("Photo");
+
+  // const [syncRotate] = useState(new Animated.Value(0));
 
   const camera = React.useRef<Camera>(null);
-  const devices = useCameraDevices();
+  // const devices = useCameraDevices();
   const [cameraPosition, setCameraPosition] = React.useState<"front" | "back">(
     "back"
   );
-  const device = useCameraDevice(cameraPosition);
+  // Function to open the gallery
+  const [isCameraActive, setIsCameraActive] = useState(true);
+
+  const openGallery = () => {
+    setIsCameraActive(false); // Disable the camera
+    router.push("/media"); // Navigate to MediaScreen
+  };
+
+  const devices = useCameraDevices();
+  const [cameraType, setCameraType] = useState<"back" | "front">("back");
+
+  // Toggle the camera type (front/back)
+  const toggleCameraType = () => {
+    setCameraType((prev) => (prev === "back" ? "front" : "back"));
+  };
+
+  // Select the appropriate device based on cameraType.
+  const device = devices.find((d) => d.position === cameraType);
+
   const [zoom, setZoom] = React.useState(device?.neutralZoom);
   const [exposure, setExposure] = React.useState(0);
   const [flash, setFlash] = React.useState<"off" | "on">("off");
   const [torch, setTorch] = React.useState<"off" | "on">("off");
   const redirectToPermissions =
     !hasPermission || microphonePermission === "not-determined";
-
-  const router = useRouter();
 
   const takePicture = async () => {
     try {
@@ -99,7 +122,13 @@ const HomeScreen = () => {
   const toggleZoomControls = () => setShowZoomControls(!showZoomControls);
 
   if (redirectToPermissions) return <Redirect href={"/permissions"} />;
-  if (!device) return <></>;
+  if (!device) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading Camera...</Text>
+      </View>
+    );
+  }
 
   // Draggable Panel State and Gesture
   const panelHeight = useSharedValue(0); // 0 = hidden, full height when dragged up
@@ -136,7 +165,8 @@ const HomeScreen = () => {
               photo={true}
               zoom={zoom}
               device={device!}
-              isActive={true}
+              isActive={isCameraActive} // Camera is disabled when opening gallery
+              // isActive={true}
               resizeMode="cover"
               preview={true}
               exposure={exposure}
@@ -154,26 +184,28 @@ const HomeScreen = () => {
               experimentalBlurMethod="dimezisBlurView"
             ></BlurView>
           </View>
-          {/* <ScrollView
-            horizontal={false}
-            showsHorizontalScrollIndicator={false} // Hide the scroll indicator for a cleaner look
-            style={styles.modeSelectionScroll}
-            contentContainerStyle={styles.modeSelectionContent}
-          > */}
-            <View style={styles.modeSelection}>
-              <TouchableOpacity style={styles.modeButton}>
-                <Text style={styles.modeText}>Photo</Text>
+
+          <View style={styles.modeSelection}>
+            {["Photo", "Video", "Portrait", "Panorama"].map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.modeButton,
+                  { backgroundColor: selectedMode === mode ? "#559" : "white" },
+                ]}
+                onPress={() => setSelectedMode(mode)}
+              >
+                <Text
+                  style={[
+                    styles.modeText,
+                    { color: selectedMode === mode ? "white" : "black" },
+                  ]}
+                >
+                  {mode}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modeButton}>
-                <Text style={styles.modeText}>Video</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modeButton}>
-                <Text style={styles.modeText}>Portrait</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modeButton}>
-                <Text style={styles.modeText}>Panorama</Text>
-              </TouchableOpacity>
-            </View>
+            ))}
+          </View>
           {/* </ScrollView> */}
           <View style={styles.sliderContainer}>
             {showZoomControls ? (
@@ -218,40 +250,35 @@ const HomeScreen = () => {
           </View>
 
           <View style={styles.captureButtonContainer}>
+            <TouchableOpacity>
+              <Ionicons
+                name="images-outline"
+                size={width * 0.09}
+                color="white"
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.captureButton}
               onPress={takePicture}
             >
               <Ionicons name="camera" size={48} color="white" />
             </TouchableOpacity>
-          </View>
 
+            <TouchableOpacity onPress={toggleCameraType}>
+              <Ionicons name="sync-circle" size={width * 0.115} color="white" />
+            </TouchableOpacity>
+          </View>
           {/* Draggable Panel */}
           <GestureDetector gesture={panGesture}>
             <Animated.View style={[styles.draggablePanel, panelStyle]}>
               <View style={styles.panelHandle} />
-              <View style={styles.toggleContainer}>
-                <Text style={styles.texts}>AI Mode</Text>
-                <Switch
-                  style={styles.switchs}
-                  value={aiMode}
-                  onValueChange={toggleAiMode}
-                />
-                <Text style={styles.texttip}>{aiMode ? "ON" : "OFF"}</Text>
-              </View>
-              <View style={styles.toggleContainer}>
-                <Text style={styles.texts}>360° Angle Mode</Text>
-                <Switch value={angleMode} onValueChange={toggleAngleMode} />
-                <Text style={styles.texttip}>{angleMode ? "ON" : "OFF"}</Text>
-              </View>
               <View>
-                <Text
-                  style={{
-                    color: "white",
-                  }}
-                >
-                  Exposure: {exposure} | Zoom: x{zoom}
-                </Text>
+                {/* <CameraNavPanel /> */}
+                <CameraNavPanel
+                  onSyncPress={toggleCameraType}
+                  selectedModeprop={selectedMode}
+                  onModeChange={setSelectedMode}
+                />
               </View>
             </Animated.View>
           </GestureDetector>
@@ -267,9 +294,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
     justifyContent: "flex-end",
-    paddingTop: 20,
+    paddingTop: 40,
     paddingBottom: 40,
   },
+
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  captureAndSyncContainer: {
+    position: "absolute",
+    bottom: 100,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+  },
+  loadingText: { color: "white", fontSize: 18 },
   cameraFeed: {
     flex: 1,
     justifyContent: "center",
@@ -303,12 +347,13 @@ const styles = StyleSheet.create({
   },
   modeButton: {
     backgroundColor: "rgb(255, 255, 255)",
-    padding: 5,
+    padding: 10,
     borderRadius: 35,
   },
   modeText: {
     color: "black",
-    fontSize: 16,
+    fontSize: 11,
+    
   },
   sliderContainer: {
     paddingHorizontal: 20,
@@ -324,6 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   toggleContainer: {
+    // zIndex: 1,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 5,
@@ -348,6 +394,8 @@ const styles = StyleSheet.create({
     right: 20,
   },
   captureButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     alignItems: "center",
     marginBottom: 40,
     bottom: -35,
@@ -360,8 +408,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  texts: { color: "white", fontSize: 10 },
-  texttip: { color: "white", fontSize: 7 },
+  texts: { color: "white", fontSize: 12 },
+  texttip: { color: "white", fontSize: 8 },
   switchs: { shadowColor: "white" },
 
   // Draggable Panel Styles

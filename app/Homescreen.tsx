@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Suspense, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   useWindowDimensions,
   Dimensions,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -14,56 +15,50 @@ import {
   Camera,
   useCameraDevice,
   useCameraPermission,
-  Frame,
-  useFrameProcessor,
-  // useFrameProcessor,
 } from "react-native-vision-camera";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import { BlurView } from "expo-blur";
 import ObscuraButton from "@/components/ObscuraButton";
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
   useAnimatedProps,
   withTiming,
   runOnJS,
+  useAnimatedStyle,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as MediaLibrary from "expo-media-library";
 import ZoomControls from "@/components/ZoomControls";
 import ExposureControls from "@/components/ExposureControls";
 import CameraNavPanel from "./CameranavPanel";
-import FocusBox from "./FocusBox";
-import Pure3DOverlayAdvanced from "./Svg3DOverlay";
-import OrientationOverlay from "./Svg3DOverlay";
-import OrientationOverlayNew from "./Svg3DOverlay";
-import InlineOverlay from "./Svg3DOverlay";
 import InlineOverlayReanimated from "./Svg3DOverlay";
-import FeedbackBanner from "./FeedbackBanner";
-// import ArrowAnimator from "./ArrowAnimator";
-// import FocusBox from "./FocuxBox"; // New separate component for focus box
+import FeedbackBanner, { getDirectionText } from "./FeedbackBanner";
+import FocusBoxWithCaption from "./FocusBox";
+// import FocusBoxWithCaption from "./FocusBoxWithCaption";
 
 Animated.addWhitelistedNativeProps({ zoom: true });
 const ReanimatedCamera = Animated.createAnimatedComponent(Camera);
 
+const API_BASE_URL = "http://165.22.211.179:5003"; // Replace with your backend URL
+
 const HomeScreen = () => {
   const [aiMode, setAiMode] = useState(false);
-  const [angleMode, setAngleMode] = useState(false);
   const { hasPermission } = useCameraPermission();
-  const microphonePermission = Camera.getMicrophonePermissionStatus();
   const [showZoomControls, setShowZoomControls] = useState(false);
   const [showExposureControls, setShowExposureControls] = useState(false);
   const { width } = useWindowDimensions();
   const [selectedMode, setSelectedMode] = useState<string>("Photo");
   const [isCameraActive, setIsCameraActive] = useState(true);
-  const [caption, setCaption] = useState("Your caption appears here");
+  const [caption, setCaption] = useState(""); // Dynamic caption from backend
   const [isFrozen, setIsFrozen] = useState(false);
-  const camera = React.useRef<Camera>(null);
-
+  const camera = useRef<Camera>(null);
+  const [hasRefinedValues, setHasRefinedValues] = useState(false);
   const [cameraType, setCameraType] = useState<"back" | "front">("back");
   const [exposure, setExposure] = useState(0);
   const [flash, setFlash] = useState<"off" | "on">("off");
   const [torch, setTorch] = useState<"off" | "on">("off");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const device = useCameraDevice(cameraType, {
     physicalDevices: cameraType === "back" ? ["wide-angle-camera"] : undefined,
@@ -71,66 +66,38 @@ const HomeScreen = () => {
 
   const zoom = useSharedValue(device?.neutralZoom ?? 1);
   const zoomOffset = useSharedValue(0);
+  const isOverlayVisible = useSharedValue(0);
 
-  // State for feedback banner and scenario index
+  // Feedback and orientation states
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
-  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const [bannerVisible, setBannerVisible] = useState(true);
+  const targetYaw = useSharedValue(0);
+  const targetPitch = useSharedValue(0);
+  const targetRoll = useSharedValue(0);
+  const targetYawShared = useSharedValue(targetYaw || 0);
+  const targetPitchShared = useSharedValue(targetPitch || 0);
+  const targetRollShared = useSharedValue(targetRoll || 0);
+  const currentYaw = useSharedValue(0);
+  const currentPitch = useSharedValue(0);
+  const currentRoll = useSharedValue(0);
 
-  const mockScenarios = [
-    {
-      label: "cup",
-      direction: "center",
-      distance: 0.03,
-      caption: "A ceramic cup on a wooden table with a handle on the right.",
-      orientation: { yaw: 2, pitch: -1, roll: 1 },
-    },
-    {
-      label: "apple-speaker",
-      direction: "down-right",
-      distance: 0.21,
-      caption:
-        "An apple slice shaped like a portable speaker on a flat kitchen counter.",
-      orientation: { yaw: 18, pitch: -5, roll: 8 },
-    },
-    {
-      label: "pen-holder",
-      direction: "up-left",
-      distance: 0.14,
-      caption: "A metal pen holder next to a stack of notebooks.",
-      orientation: { yaw: -12, pitch: 3, roll: -9 },
-    },
-  ];
+  // Parse feedback text and update targets
 
-  // Shared values for bounding box
+  // Bounding box states
   const focusX = useSharedValue(0);
   const focusY = useSharedValue(0);
   const focusWidth = useSharedValue(100);
   const focusHeight = useSharedValue(100);
   const showFocusBox = useSharedValue(0);
-  // New shared value to indicate if tracking is enabled
   const trackingEnabled = useSharedValue(0);
 
-  // New animated style for caption display
-  const captionStyle = useAnimatedStyle(() => ({
-    position: "absolute",
-    top: focusY.value - 40 < 0 ? 0 : focusY.value - 40,
-    left: focusX.value,
-    color: "white",
-    fontSize: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    padding: 5,
-    zIndex: 1100,
-  }));
-  const targetYaw = useSharedValue(30);
-  const targetPitch = useSharedValue(-10);
-  const targetRoll = useSharedValue(15);
+  // Handle aiMode toggle for overlay visibility
+  useEffect(() => {
+    isOverlayVisible.value = withTiming(aiMode ? 1 : 0, { duration: 300 });
+  }, [aiMode]);
 
-  const currentYaw = useSharedValue(0);
-  const currentPitch = useSharedValue(0);
-  const currentRoll = useSharedValue(0);
-
-  // Pinch-to-zoom gesture remains unchanged
+  // Pinch-to-zoom gesture
   const pinchGesture = Gesture.Pinch()
     .onBegin(() => {
       zoomOffset.value = zoom.value;
@@ -143,37 +110,41 @@ const HomeScreen = () => {
       );
     });
 
-  // Use frame processor to continuously update the bounding box when tracking is enabled.
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
-      "worklet";
-      if (trackingEnabled.value === 1) {
-        // Use the current center of the bounding box as reference.
+  // Manual tracking with setInterval
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    if (trackingEnabled.value === 1 && !isFrozen) {
+      intervalId = setInterval(() => {
         const centerX = focusX.value + focusWidth.value / 2;
         const centerY = focusY.value + focusHeight.value / 2;
-        // Simulate detection update (you should replace this with your actual model)
-        const detectedWidth = Math.random() * 20 + focusWidth.value; // small random variation
+        const detectedWidth = Math.random() * 20 + focusWidth.value;
         const detectedHeight = Math.random() * 20 + focusHeight.value;
-        // For smooth tracking, we use linear interpolation (with a factor) to update.
         const lerpFactor = 0.1;
-        focusX.value =
-          focusX.value +
+        focusX.value +=
           lerpFactor * (centerX - detectedWidth / 2 - focusX.value);
-        focusY.value =
-          focusY.value +
+        focusY.value +=
           lerpFactor * (centerY - detectedHeight / 2 - focusY.value);
-        focusWidth.value =
-          focusWidth.value + lerpFactor * (detectedWidth - focusWidth.value);
-        focusHeight.value =
-          focusHeight.value + lerpFactor * (detectedHeight - focusHeight.value);
-      }
-    },
-    [trackingEnabled]
-  );
+        focusWidth.value += lerpFactor * (detectedWidth - focusWidth.value);
+        focusHeight.value += lerpFactor * (detectedHeight - focusHeight.value);
+        // console.log("Manual tracking update - Bounding box:", {
+        //   x: focusX.value,
+        //   y: focusY.value,
+        //   width: focusWidth.value,
+        //   height: focusHeight.value,
+        // });
+      }, 200);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [trackingEnabled, isFrozen]);
 
-  // detectObject function for initial detection, but tracking will update continuously.
-  const detectObject = (frame: Frame, x: number, y: number) => {
-    // Calculate a fixed 400x400 region (if needed)
+  // Detect object function for bounding box initialization
+  const detectObject = (
+    frame: { width: number; height: number },
+    x: number,
+    y: number
+  ) => {
     const { width: screenWidth, height: screenHeight } =
       Dimensions.get("window");
     const regionLeft = (screenWidth - 400) / 2;
@@ -183,21 +154,204 @@ const HomeScreen = () => {
 
     const detectedWidth = Math.random() * 100 + 50;
     const detectedHeight = Math.random() * 100 + 50;
-    let newX = x - detectedWidth / 2;
-    let newY = y - detectedHeight / 2;
+    let newX = x;
+    let newY = y;
 
     newX = Math.max(regionLeft, Math.min(newX, regionRight - detectedWidth));
     newY = Math.max(regionTop, Math.min(newY, regionBottom - detectedHeight));
 
-    return {
-      x: newX,
-      y: newY,
-      width: detectedWidth,
-      height: detectedHeight,
-    };
+    return { x: newX, y: newY, width: detectedWidth, height: detectedHeight };
   };
 
-  // Modified sendToBackend: on receiving backend response, update caption and enable tracking.
+  // Backend API calls
+  const callClassifier = async (data: {
+    bbox_x: number;
+    bbox_y: number;
+    width: number;
+    height: number;
+    pitch: number;
+    roll: number;
+    yaw: number;
+    exposure: number;
+    zoom_level: number;
+  }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/classifier`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok)
+        throw new Error(`Classifier API error: ${response.statusText}`);
+      const json = await response.json();
+      if (
+        !json.predicted_direction ||
+        typeof json.distance_to_center !== "number"
+      ) {
+        throw new Error("Invalid classifier response");
+      }
+      return json;
+    } catch (error: unknown) {
+      throw new Error(
+        `Classifier failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  };
+
+  const callCaption = async (imagePath: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", {
+        uri: imagePath,
+        type: "image/jpeg",
+        name: "temp.jpg",
+      } as any);
+      const response = await fetch(`${API_BASE_URL}/caption`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok)
+        throw new Error(`Caption API error: ${response.statusText}`);
+      const json = await response.json();
+      if (!json.success || !json.caption) {
+        throw new Error("Invalid caption response");
+      }
+      return json;
+    } catch (error: unknown) {
+      throw new Error(
+        `Caption failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  };
+
+  // const callRefine = async (imagePath: string) => {
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("image", {
+  //       uri: imagePath,
+  //       type: "image/jpeg",
+  //       name: "temp.jpg",
+  //     } as any);
+  //     formData.append("delta", "5.0");
+  //     const response = await fetch(`${API_BASE_URL}/refine`, {
+  //       method: "POST",
+  //       body: formData,
+  //     });
+  //     if (!response.ok)
+  //       throw new Error(`Refine API error: ${response.statusText}`);
+  //     const json = await response.json();
+
+  //     if (
+  //       !json.success ||
+  //       !json.refined_angles ||
+  //       json.refined_angles.length !== 3
+  //     ) {
+  //       throw new Error("Invalid refine response");
+  //     }
+  //     return json;
+  //   } catch (error: unknown) {
+  //     throw new Error(
+  //       `Refine failed: ${error instanceof Error ? error.message : "Unknown error"}`
+  //     );
+  //   }
+  // };
+
+  const callRefine = async (imagePath: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", {
+        uri: imagePath,
+        type: "image/jpeg",
+        name: "temp.jpg",
+      } as any);
+      formData.append("delta", "5.0");
+
+      const response = await fetch(`${API_BASE_URL}/refine`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok)
+        throw new Error(`Refine API error: ${response.statusText}`);
+
+      const json = await response.json();
+
+      if (
+        !json.success ||
+        !json.refined_angles ||
+        json.refined_angles.length !== 3
+      ) {
+        throw new Error("Invalid refine response");
+      }
+
+      // Automatically enable AI mode when we get refined values
+
+      runOnJS(setHasRefinedValues)(true);
+
+      return json;
+    } catch (error: unknown) {
+      runOnJS(setAiMode)(false);
+      runOnJS(setHasRefinedValues)(false);
+      throw error;
+    }
+  };
+  const getDirectionText = (
+    yaw: number,
+    pitch: number,
+    roll: number,
+    distance: number,
+    caption: string
+  ) => {
+    // Convert to degrees if values are in radians
+    const toDegrees = (angle: number) =>
+      Math.abs(angle) < Math.PI * 1.1 ? angle * (180 / Math.PI) : angle;
+
+    const degYaw = toDegrees(yaw);
+    const degPitch = toDegrees(pitch);
+    const degRoll = toDegrees(roll);
+
+    // Formatting helper
+    const formatInstruction = (value: number, type: string) => {
+      const absValue = Math.abs(value);
+      if (absValue < 5) return null;
+
+      switch (type) {
+        case "yaw":
+          const yawDir = value > 0 ? "right" : "left";
+          return `${absValue < 15 ? "Slightly" : "Strongly"} rotate ${yawDir}`;
+        case "pitch":
+          const pitchDir = value > 0 ? "down" : "up";
+          return `${absValue < 15 ? "Gently tilt" : "Tilt more"} ${pitchDir}`;
+        case "roll":
+          const rollDir = value > 0 ? "left" : "right";
+          return `${absValue < 15 ? "Slightly tilt" : "Tilt more to the"} ${rollDir}`;
+      }
+    };
+
+    const steps = [
+      formatInstruction(degYaw, "yaw"),
+      formatInstruction(degPitch, "pitch"),
+      formatInstruction(degRoll, "roll"),
+    ].filter(Boolean);
+
+    if (steps.length === 0) {
+      return "✅ Perfect position! Hold steady.";
+    }
+
+    targetYaw.value = degYaw;
+    targetPitch.value = degPitch;
+    targetRoll.value = degRoll;
+    runOnJS(setAiMode)(false);
+    runOnJS(setAiMode)(true);
+
+    return (
+      `📷 Adjustment Steps:\n${steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n` +
+      `Current Orientation:\nYaw: ${degYaw.toFixed(1)}° | Pitch: ${degPitch.toFixed(1)}° | Roll: ${degRoll.toFixed(1)}°\n` +
+      `Distance: ${distance.toFixed(2)}\n` +
+      `Caption: ${caption}`
+    );
+  };
+
   const sendToBackend = async (
     x: number,
     y: number,
@@ -205,294 +359,135 @@ const HomeScreen = () => {
     height: number,
     imagePath: string
   ) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const normalizedData = {
+      // 1. Get caption first
+      const captionResponse = await callCaption(imagePath);
+      const captionText = captionResponse.caption || "No caption available";
+      setCaption(captionText);
+
+      // 2. Call classifier
+      const classifierResponse = await callClassifier({
         bbox_x: x / 400,
         bbox_y: y / 400,
         width: width / 400,
         height: height / 400,
-        pitch: 0.0,
-        roll: 0.0,
-        yaw: 0.0,
-      };
-      console.log("Sending normalized data to backend:", normalizedData);
-
-      const formData = new FormData();
-      formData.append("image", {
-        uri: imagePath,
-        type: "image/jpeg",
-        name: "temp.jpg",
-      } as any);
-
-      const response = await fetch("http://localhost:5000/caption", {
-        method: "POST",
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        body: formData,
+        pitch: 0, // These will be updated by refine
+        roll: 0,
+        yaw: 0,
+        exposure,
+        zoom_level: zoom.value,
       });
-      const result = await response.json();
-      console.log("Backend response:", result);
-      setCaption(result.caption || "No caption returned");
-      // Enable continuous tracking
-      trackingEnabled.value = 1;
-      // Freeze camera preview if desired (or you can let it run for tracking)
-      // setIsCameraActive(false);
+
+      // 3. Call refine endpoint - THIS IS THE KEY PART
+      const refineResult = await callRefine(imagePath); // Changed variable name from refineResponse to refineResult
+      if (!refineResult.success || !refineResult.refined_angles) {
+        throw new Error("Invalid refine response");
+      }
+
+      const [refinedYaw, refinedPitch, refinedRoll] =
+        refineResult.refined_angles;
+
+      // 4. Generate human-readable instructions
+      const directionGuide = getDirectionText(
+        refinedYaw,
+        refinedPitch,
+        refinedRoll,
+        classifierResponse.distance_to_center, // Add distance
+        captionText // Add caption
+      );
+
+      setFeedbackText(directionGuide);
+
+      console.log("Raw refine angles:", refineResult.refined_angles);
+      setFeedbackVisible(true);
+
+      // 6. Update animated values if in AI mode
+      if (aiMode) {
+        currentYaw.value = withTiming(refinedYaw, { duration: 500 });
+        currentPitch.value = withTiming(refinedPitch, { duration: 500 });
+        currentRoll.value = withTiming(refinedRoll, { duration: 500 });
+      }
+
+      if (!isFrozen) trackingEnabled.value = 1;
     } catch (error) {
-      console.error("Loading Backend take too long:");
+      setError(error instanceof Error ? error.message : "Unknown error");
+      setFeedbackText("⚠️ Failed to process image. Please try again.");
+      setFeedbackVisible(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Modified focus: On tap, capture a snapshot, get initial detection, update bounding box,
-  // then send to backend and enable tracking.
-  // const focus = useCallback(
-  //   debounce(async (point: { x: number; y: number }) => {
-  //     console.log("Focusing at:", point);
-  //     const c = camera.current;
-  //     if (c == null || !device?.supportsFocus) {
-  //       console.log("Camera not available or focus not supported");
-  //       return;
-  //     }
-  //     const frame = await c.takeSnapshot({ quality: 85 });
-  //     console.log("Snapshot taken:", frame.path);
-
-  //     const asset = await MediaLibrary.createAssetAsync(frame.path);
-  //     const savedPath = asset.uri;
-  //     console.log("Snapshot saved:", savedPath);
-
-  //     const detected = detectObject(
-  //       { width: frame.width, height: frame.height } as Frame,
-  //       point.x,
-  //       point.y
-  //     );
-  //     focusX.value = detected.x;
-  //     focusY.value = detected.y;
-  //     focusWidth.value = detected.width;
-  //     focusHeight.value = detected.height;
-  //     showFocusBox.value = withTiming(1, { duration: 200 });
-  //     console.log("Focus box set:", detected);
-
-  //     c.focus(point).catch((error) => {
-  //       if (
-  //         error.message.includes("focus-canceled") ||
-  //         error.code === "capture/focus-canceled"
-  //       ) {
-  //         console.log("Focus canceled, ignoring...");
-  //       } else {
-  //         console.error("Failed to focus:", error);
-  //       }
-  //     });
-
-  //     sendToBackend(
-  //       detected.x,
-  //       detected.y,
-  //       detected.width,
-  //       detected.height,
-  //       savedPath
-  //     );
-  //   }, 300),
-  //   [
-  //     device?.supportsFocus,
-  //     focusX,
-  //     focusY,
-  //     focusWidth,
-  //     focusHeight,
-  //     showFocusBox,
-  //   ]
-  // );
-
-  // const focus = useCallback(
-  //   debounce(async (point: { x: number; y: number }) => {
-  //     console.log("Focusing at:", point);
-  //     const c = camera.current;
-  //     if (c == null || !device?.supportsFocus) {
-  //       console.log("Camera not available or focus not supported");
-  //       return;
-  //     }
-  //     const frame = await c.takeSnapshot({ quality: 85 });
-  //     console.log("Snapshot taken:", frame.path);
-
-  //     const asset = await MediaLibrary.createAssetAsync(frame.path);
-  //     const savedPath = asset.uri;
-  //     console.log("Snapshot saved:", savedPath);
-
-  //     const detected = detectObject(
-  //       { width: frame.width, height: frame.height } as Frame,
-  //       point.x,
-  //       point.y
-  //     );
-  //     focusX.value = detected.x;
-  //     focusY.value = detected.y;
-  //     focusWidth.value = detected.width;
-  //     focusHeight.value = detected.height;
-  //     showFocusBox.value = withTiming(1, { duration: 200 });
-  //     console.log("Focus box set:", detected);
-
-  //     // Attempt to trigger camera focus on the tapped point.
-  //     c.focus(point).catch((error) => {
-  //       if (
-  //         error.message.includes("focus-canceled") ||
-  //         error.code === "capture/focus-canceled"
-  //       ) {
-  //         console.log("Focus canceled, ignoring...");
-  //       } else {
-  //         console.error("Failed to focus:", error);
-  //       }
-  //     });
-
-  //     // Send data to backend (you can keep this call as it is).
-  //     sendToBackend(
-  //       detected.x,
-  //       detected.y,
-  //       detected.width,
-  //       detected.height,
-  //       savedPath
-  //     );
-
-  //     // ----- Begin Scenario Feedback Simulation -----
-  //     // Select the current scenario from mockScenarios.
-  //     const currentScenario = mockScenarios[scenarioIndex];
-
-  //     // Phase 1: Immediately show centering feedback.
-  //     setFeedbackText(
-  //       `📐 ${currentScenario.label.toUpperCase()} → Centering: ${currentScenario.direction.toUpperCase()} • Offset ${currentScenario.distance.toFixed(2)}`
-  //     );
-  //     setFeedbackVisible(true);
-
-  //     // Phase 2: After 3 seconds, show caption feedback.
-  //     setTimeout(() => {
-  //       setFeedbackText(`🖼 Caption: ${currentScenario.caption}`);
-  //       setFeedbackVisible(true);
-  //     }, 3000);
-
-  //     // Phase 3: After 6 seconds total, update orientation feedback.
-  //     setTimeout(() => {
-  //       const { yaw, pitch, roll } = currentScenario.orientation;
-  //       // You can update your shared orientation values here if needed.
-  //       // For example, if your UI uses these values:
-  //       targetYaw.value = 0;
-  //       targetPitch.value = 0;
-  //       targetRoll.value = 0;
-  //       currentYaw.value = yaw;
-  //       currentPitch.value = pitch;
-  //       currentRoll.value = roll;
-
-  //       setFeedbackText(
-  //         `🧭 Orientation → Yaw: ${yaw}°, Pitch: ${pitch}°, Roll: ${roll}°`
-  //       );
-  //       setFeedbackVisible(true);
-  //     }, 6000);
-
-  //     // Cycle to the next scenario for the next tap.
-  //     setScenarioIndex((prev) => (prev + 1) % mockScenarios.length);
-  //     // ----- End Scenario Feedback Simulation -----
-  //   }, 300),
-  //   [
-  //     device?.supportsFocus,
-  //     focusX,
-  //     focusY,
-  //     focusWidth,
-  //     focusHeight,
-  //     showFocusBox,
-  //     scenarioIndex,
-  //   ]
-  // );
-
+  console.log("Raw refine angles:", feedbackText);
+  // Focus and process image
   const focus = useCallback(
     debounce(async (point: { x: number; y: number }) => {
-      console.log("Focusing at:", point);
-      const c = camera.current;
-      if (!c || !device?.supportsFocus) {
-        console.log("Camera not available or focus not supported");
+      if (isFrozen) {
+        console.log("Tap ignored - Screen is frozen (static mode)");
+        setFeedbackText("Camera is in static mode. Unfreeze to interact.");
+        setFeedbackVisible(true);
         return;
       }
-      const frame = await c.takeSnapshot({ quality: 85 });
-      console.log("Snapshot taken:", frame.path);
+      console.log("Tap detected - Focusing at:", point);
+      const c = camera.current;
+      if (!c || !device?.supportsFocus) {
+        setError("Camera not available or focus not supported");
+        console.error("Camera not available or focus not supported");
+        return;
+      }
 
-      const asset = await MediaLibrary.createAssetAsync(frame.path);
-      const savedPath = asset.uri;
-      console.log("Snapshot saved:", savedPath);
+      setIsLoading(true);
+      try {
+        const frame = await c.takeSnapshot({ quality: 85 });
+        const asset = await MediaLibrary.createAssetAsync(frame.path);
+        const savedPath = asset.uri;
+        console.log("Snapshot saved:", savedPath);
 
-      // Update bounding box UI
-      const detected = detectObject(
-        { width: frame.width, height: frame.height } as Frame,
-        point.x,
-        point.y
-      );
-      focusX.value = detected.x;
-      focusY.value = detected.y;
-      focusWidth.value = detected.width;
-      focusHeight.value = detected.height;
-      showFocusBox.value = withTiming(1, { duration: 200 });
-
-      // Focus the camera
-      c.focus(point).catch((error) => {
-        if (error.message.includes("focus-canceled")) {
-          console.log("Focus canceled, ignoring...");
-        } else {
-          console.error("Failed to focus:", error);
-        }
-      });
-
-      // Optional: send bounding box to backend
-      sendToBackend(
-        detected.x,
-        detected.y,
-        detected.width,
-        detected.height,
-        savedPath
-      );
-
-      // Simulated scenario from mockScenarios
-      const currentScenario = mockScenarios[scenarioIndex];
-
-      // Phase 0: show "Processing centering data..." for 500ms
-      setFeedbackText("⏳ Processing centering data...");
-      setTimeout(() => {
-        // Then show final centering feedback
-        setFeedbackText(
-          `📐 ${currentScenario.label.toUpperCase()} → Center: ${currentScenario.direction.toUpperCase()} • ${currentScenario.distance.toFixed(2)} offset`
+        // Update bounding box
+        const detected = detectObject(
+          { width: frame.width, height: frame.height },
+          point.x,
+          point.y
         );
-      }, 500);
+        focusX.value = detected.x;
+        focusY.value = detected.y;
+        focusWidth.value = detected.width;
+        focusHeight.value = detected.height;
+        showFocusBox.value = withTiming(1, { duration: 200 });
+        console.log("Bounding box set:", detected);
 
-      // Phase 1: after 3s, show "processing caption..." then actual caption after 500ms
-      setTimeout(() => {
-        setFeedbackText("⏳ Processing caption...");
-        setTimeout(() => {
-          setFeedbackText(`🖼 Caption: ${currentScenario.caption}`);
-        }, 500);
-      }, 3000);
+        // Focus camera
+        await c.focus(point).catch((error: Error) => {
+          if (!error.message.includes("focus-canceled")) {
+            throw new Error("Focus failed: " + error.message);
+          }
+        });
 
-      // Phase 2: after 6s, show "processing orientation..." then orientation
-      setTimeout(() => {
-        setFeedbackText("⏳ Processing orientation...");
-        setTimeout(() => {
-          // Update orientation values if used by an overlay, e.g.:
-          targetYaw.value = 0;
-          targetPitch.value = 0;
-          targetRoll.value = 0;
-          currentYaw.value = currentScenario.orientation.yaw;
-          currentPitch.value = currentScenario.orientation.pitch;
-          currentRoll.value = currentScenario.orientation.roll;
-
-          setFeedbackText(
-            `🧭 Orientation → Y: ${currentScenario.orientation.yaw}°, P: ${currentScenario.orientation.pitch}°, R: ${currentScenario.orientation.roll}°`
-          );
-        }, 500);
-      }, 6000);
-
-      // Move to next scenario
-      setScenarioIndex((prev) => (prev + 1) % mockScenarios.length);
+        // Send to backend
+        await sendToBackend(
+          detected.x,
+          detected.y,
+          detected.width,
+          detected.height,
+          savedPath
+        );
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setError(errorMessage);
+        setFeedbackText("⚠️ Failed to process focus. Please try again.");
+        setFeedbackVisible(true);
+        console.error("Focus error:", errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
     }, 300),
-    [scenarioIndex, device /* ...other deps... */]
+    [device, aiMode, exposure, zoom.value, isFrozen]
   );
 
   const tapGesture = Gesture.Tap().onEnd((event) => {
-    if (isFrozen) {
-      console.log("Screen is frozen; ignoring tap.");
-      return;
-    }
-    console.log("Tap detected:", event.x, event.y);
     runOnJS(focus)({ x: event.x, y: event.y });
   });
 
@@ -519,6 +514,14 @@ const HomeScreen = () => {
     transform: [{ translateY: panelHeight.value }],
   }));
 
+  if (!hasPermission) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Camera permission required.</Text>
+      </View>
+    );
+  }
+
   if (!device) {
     return (
       <View style={styles.loadingContainer}>
@@ -530,47 +533,46 @@ const HomeScreen = () => {
   const openGallery = () => {
     setIsCameraActive(false);
     router.push("/media");
+    console.log("Gallery opened");
   };
 
   const takePicture = async () => {
     try {
-      if (camera.current == null) throw new Error("Camera ref is null!");
+      if (!camera.current) throw new Error("Camera ref is null!");
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        alert("Permission to access media library is required to save photos.");
+        Alert.alert(
+          "Permission Required",
+          "Media library access needed to save photos."
+        );
+        console.log("Media library permission denied");
         return;
       }
-      console.log("Taking photo...");
+      setIsLoading(true);
       const photo = await camera.current.takePhoto({
         flash: flash,
         enableShutterSound: false,
       });
       await MediaLibrary.saveToLibraryAsync(photo.path);
-      console.log("Photo saved to gallery:", photo.path);
-    } catch (e) {
-      console.error("Failed to take photo or save!", e);
-      alert("Failed to save the photo. Please try again.");
+      console.log("Photo saved to gallery at path:", photo.path); // Log the saved path
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setError(errorMessage);
+      console.error("Take picture error:", errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const toggleCameraType = () => {
     setCameraType((prev) => (prev === "back" ? "front" : "back"));
     zoom.value = device?.neutralZoom ?? 1;
-  };
-
-  // When prediction response comes:
-  const handlePredictionResponse = (direction: string, distance: number) => {
-    setFeedbackText(
-      `${direction.toUpperCase()} • ${distance.toFixed(2)} offset`
+    console.log(
+      "Camera type toggled to:",
+      cameraType === "back" ? "front" : "back"
     );
-    setFeedbackVisible(true);
   };
-
-  // In your sendToBackend() success block:
-  // handlePredictionResponse(
-  //   result.predicted_direction,
-  //   result.distance_to_center
-  // );
 
   return (
     <View style={styles.container}>
@@ -588,57 +590,75 @@ const HomeScreen = () => {
             exposure={exposure}
             torch={torch}
             animatedProps={animatedProps}
-            // frameProcessor={frameProcessor}
-            // Cast to any to bypass TS error
-            // {...({ frameProcessorFps: 5 } as any)}
           />
         </GestureDetector>
         {aiMode && (
-          <View>
-            <InlineOverlayReanimated
-              targetYaw={targetYaw}
-              targetPitch={targetPitch}
-              targetRoll={targetRoll}
-              currentYaw={currentYaw}
-              currentPitch={currentPitch}
-              currentRoll={currentRoll}
-            />
-          </View>
+          <InlineOverlayReanimated
+            targetYaw={targetYaw}
+            targetPitch={targetPitch}
+            targetRoll={targetRoll}
+            currentYaw={currentYaw}
+            currentPitch={currentPitch}
+            currentRoll={currentRoll}
+            direction={
+              feedbackText.includes("Direction")
+                ? feedbackText
+                    .split("Direction: ")[1]
+                    .split(" •")[0]
+                    .toLowerCase()
+                : undefined
+            }
+            feedbackText={feedbackText}
+            isVisible={isOverlayVisible}
+          />
         )}
-        {/* Display caption above the bounding box */}
-        <Animated.Text style={captionStyle}>{caption}</Animated.Text>
-        <FocusBox
+        {/* <FeedbackBanner
+          visible={feedbackVisible}
+          feedbackText={feedbackText}
+          directionText={directionText}
+          onHide={() => setFeedbackVisible(false)}
+        /> */}
+        <View style={styles.wrapper}>
+          <FeedbackBanner
+            visible={feedbackVisible}
+            feedbackText={feedbackText}
+            // This now includes directionText + other info
+            onHide={() => setFeedbackVisible(false)}
+          />
+          {!bannerVisible && (
+            <TouchableOpacity
+              style={styles.viewFeedbackBtn}
+              onPress={() => setBannerVisible(true)}
+            >
+              <Text style={styles.viewFeedbackText}>View Feedback</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {/* <FocusBoxWithCaption
           focusX={focusX}
           focusY={focusY}
           focusWidth={focusWidth}
           focusHeight={focusHeight}
           opacity={showFocusBox}
-        />
-        <BlurView
-          intensity={100}
-          tint="dark"
-          style={{
-            position: "absolute",
-            bottom: 10,
-            right: 10,
-            padding: 10,
-          }}
-          experimentalBlurMethod="dimezisBlurView"
-        />
-        {aiMode && (
-          // <View>
-          //   {/* InlineFeedbackBanner will now be part of the flow */}
-          //   <FeedbackBanner
-          //     visible={feedbackVisible}
-          //     feedbackText={feedbackText}
-          //     onHide={() => setFeedbackVisible(false)}
-          //   />
-
-          // </View>
-          <View style={styles.feedbackBanner}>
-            <Text style={styles.feedbackText}>{feedbackText}</Text>
+          caption={caption}
+        /> */}
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <Text style={styles.loadingText}>Processing...</Text>
           </View>
         )}
+        {error && (
+          <View style={styles.errorOverlay}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => setError(null)}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.modeSelection}>
           {["Photo", "Video", "Portrait", "Panorama"].map((mode) => (
             <TouchableOpacity
@@ -660,7 +680,6 @@ const HomeScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
-
         <View style={styles.sliderContainer}>
           {showZoomControls && (
             <ZoomControls
@@ -719,6 +738,8 @@ const HomeScreen = () => {
               onModeChange={setSelectedMode}
               aiMode={aiMode}
               setAiMode={setAiMode}
+              setfeedback={setFeedbackVisible}
+              feedMode={feedbackVisible}
             />
           </Animated.View>
         </GestureDetector>
@@ -831,28 +852,57 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 10,
   },
-  captionContainer: {
+  loadingOverlay: {
     position: "absolute",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 5,
-    borderRadius: 5,
-    zIndex: 1100,
-  },
-  captionText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  feedbackBanner: {
-    backgroundColor: "rgba(49, 49, 49, 0.5)",
-    paddingVertical: 5,
-    alignItems: "center",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
-    marginTop: 30,
+    alignItems: "center",
   },
-  feedbackText: {
-    color: "#fff",
+  errorOverlay: {
+    position: "absolute",
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(255,0,0,0.8)",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "white",
+    fontSize: 16,
+  },
+  retryButton: {
+    marginTop: 10,
+    backgroundColor: "white",
+    padding: 8,
+    borderRadius: 5,
+  },
+  retryText: {
+    color: "black",
     fontSize: 14,
+  },
+  wrapper: {
+    position: "absolute",
+    top: 370,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewFeedbackBtn: {
+    alignSelf: "center",
+    marginTop: 8,
+    padding: 5,
+    borderRadius: 6,
+    backgroundColor: "#333",
+  },
+  viewFeedbackText: {
+    fontSize: 12,
+    color: "#fff",
   },
 });
 

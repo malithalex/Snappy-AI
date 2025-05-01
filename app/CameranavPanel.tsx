@@ -19,6 +19,8 @@ type CameraNavPanelProps = {
   onModeChange: (mode: string) => void;
   aiMode: boolean; // Added aiMode prop
   setAiMode: (value: boolean) => void; //
+  setfeedback: (value: boolean) => void; //
+  feedMode: boolean;
 };
 
 const CameraNavPanel: React.FC<CameraNavPanelProps> = ({
@@ -27,6 +29,8 @@ const CameraNavPanel: React.FC<CameraNavPanelProps> = ({
   onModeChange,
   aiMode,
   setAiMode,
+  feedMode,
+  setfeedback,
 }) => {
   const { width } = useWindowDimensions();
   // const [aiMode, setAiMode] = useState<boolean>(false);
@@ -78,6 +82,14 @@ const CameraNavPanel: React.FC<CameraNavPanelProps> = ({
       if (callback) callback();
     });
   };
+
+  // const handleHardRefresh = async () => {
+  //   try {
+  //     await Updates.reloadAsync(); // This reloads the entire app
+  //   } catch (e) {
+  //     console.warn("Could not reload app:", e);
+  //   }
+  // };
 
   const handleSyncPress = () => {
     animateIcon(onSyncPress);
@@ -141,6 +153,7 @@ const CameraNavPanel: React.FC<CameraNavPanelProps> = ({
             <Ionicons name="refresh-circle" size={width * 0.1} color="white" />
           </Animated.View>
         </TouchableOpacity>
+
         <TouchableOpacity onPress={handleSyncPress}>
           <Animated.View
             style={{
@@ -252,6 +265,14 @@ const CameraNavPanel: React.FC<CameraNavPanelProps> = ({
               onValueChange={() => setAngleMode(!angleMode)}
             />
             <Text style={styles.toggleStatus}>{angleMode ? "ON" : "OFF"}</Text>
+          </View>
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleText}>Feedback</Text>
+            <Switch
+              value={feedMode}
+              onValueChange={() => setfeedback(!feedMode)}
+            />
+            <Text style={styles.toggleStatus}>{feedMode ? "ON" : "OFF"}</Text>
           </View>
         </View>
       </View>

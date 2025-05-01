@@ -18,7 +18,7 @@
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your Camera.",
         "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone."
       },
-      "bundleIdentifier": "dev.codewithbeto.obscura"
+      "bundleIdentifier": "dev.snappy"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +32,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_MEDIA_LOCATION"
       ],
-      "package": "dev.codewithbeto.obscura"
+      "package": "dev.snappy"
     },
     "web": {
       "bundler": "metro",

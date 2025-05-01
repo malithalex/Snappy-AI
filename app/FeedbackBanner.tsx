@@ -1,72 +1,94 @@
-// components/FeedbackBanner.tsx
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
   withTiming,
-  Easing,
-  runOnJS,
 } from "react-native-reanimated";
 
 interface Props {
   visible: boolean;
   feedbackText: string;
-  onHide?: () => void;
+  // directionText: string;
+  onHide: () => void;
 }
 
-const FeedbackBanner = ({ visible, feedbackText, onHide }: Props) => {
-  const translateY = useSharedValue(-100);
-
-  useEffect(() => {
-    if (visible) {
-      translateY.value = withTiming(0, {
-        duration: 500,
-        easing: Easing.out(Easing.cubic),
-      });
-
-      setTimeout(() => {
-        translateY.value = withTiming(-100, {
-          duration: 500,
-          easing: Easing.in(Easing.cubic),
-        });
-
-        if (onHide) runOnJS(onHide)();
-      }, 2500); // Auto-hide after 2.5s
-    }
-  }, [visible]);
-
+const FeedbackBanner: React.FC<Props> = ({ visible, feedbackText, onHide }) => {
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    opacity: withTiming(visible ? 1 : 0, { duration: 300 }),
+    transform: [
+      { translateY: withTiming(visible ? 0 : -50, { duration: 300 }) },
+    ],
   }));
 
   return (
-    <Animated.View style={[styles.bannerContainer, animatedStyle]}>
-      <Text style={styles.bannerText}>{feedbackText}</Text>
+    <Animated.View style={[styles.container, animatedStyle]}>
+      <Text style={styles.text}>{feedbackText}</Text>
+      <TouchableOpacity style={styles.closeButton} onPress={onHide}>
+        <Text style={styles.closeText}>✕</Text>
+      </TouchableOpacity>
     </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  bannerContainer: {
-    top: 0,
-    width: "90%",
-    backgroundColor: "#777",
-    paddingVertical: 5,
-    alignItems: "center",
+// Helper function to generate direction text (export this separately if needed)
+export const getDirectionText = (
+  yaw: number,
+  pitch: number,
+  roll: number
+): string => {
+  const instructions: string[] = [];
 
-    // justifyContent: "center",
-    zIndex: 999,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
+  // Yaw adjustments
+  if (Math.abs(yaw) > 5) {
+    const direction = yaw > 0 ? "right" : "left";
+    instructions.push(`Rotate ${direction} ${Math.abs(yaw).toFixed(1)}°`);
+  }
+
+  // Pitch adjustments
+  if (Math.abs(pitch) > 5) {
+    const direction = pitch > 0 ? "down" : "up";
+    instructions.push(`Tilt ${direction} ${Math.abs(pitch).toFixed(1)}°`);
+  }
+
+  // Roll adjustments
+  if (Math.abs(roll) > 5) {
+    const direction = roll > 0 ? "left" : "right";
+    instructions.push(`Lean ${direction} ${Math.abs(roll).toFixed(1)}°`);
+  }
+
+  return instructions.length > 0
+    ? `Adjust your device:\n${instructions.join("\n")}`
+    : "Perfect position! Hold steady";
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "rgba(49, 49, 49, 0.9)",
+    padding: 5,
+    marginHorizontal: 20,
+    marginTop: 53,
     borderRadius: 10,
-    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  bannerText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
+  text: {
+    color: "#fff",
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 10,
+  },
+  closeButton: {
+    padding: 4,
+    marginLeft: 20,
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
 
 export default FeedbackBanner;
+
+
+

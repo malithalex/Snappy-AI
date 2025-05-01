@@ -1,36 +1,59 @@
-// FocusBox.tsx
 import React from "react";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { View, Text, StyleSheet } from "react-native";
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 
-interface FocusBoxProps {
-  focusX: Animated.SharedValue<number>;
-  focusY: Animated.SharedValue<number>;
-  focusWidth: Animated.SharedValue<number>;
-  focusHeight: Animated.SharedValue<number>;
-  opacity: Animated.SharedValue<number>;
+interface FocusBoxWithCaptionProps {
+  focusX: SharedValue<number>;
+  focusY: SharedValue<number>;
+  focusWidth: SharedValue<number>;
+  focusHeight: SharedValue<number>;
+  opacity: SharedValue<number>;
+  caption: string;
 }
 
-const FocusBox: React.FC<FocusBoxProps> = ({
+const FocusBoxWithCaption = ({
   focusX,
   focusY,
   focusWidth,
   focusHeight,
   opacity,
-}) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      left: focusX.value,
-      top: focusY.value,
-      width: focusWidth.value,
-      height: focusHeight.value,
-      opacity: opacity.value,
-      borderWidth: 2,
-      borderColor: "red",
-      backgroundColor: "rgba(255, 0, 0, 0.3)",
-    };
-  });
+  caption,
+}: FocusBoxWithCaptionProps) => {
+  const focusBoxStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    width: focusWidth.value,
+    height: focusHeight.value,
+    borderWidth: 2,
+    borderColor: "red",
+    transform: [
+      { translateX: focusX.value - focusWidth.value / 2 },
+      { translateY: focusY.value - focusHeight.value / 2 },
+    ],
+    opacity: opacity.value,
+  }));
 
-  return <Animated.View style={animatedStyle} />;
+  const captionStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    top: focusY.value - focusHeight.value / 2 - 20, // 20px above focus box
+    left: focusX.value - focusWidth.value / 2,
+    fontSize: 8,
+    color: "white",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 2,
+    borderRadius: 2,
+    opacity: withTiming(caption ? opacity.value : 0, { duration: 200 }),
+  }));
+
+  return (
+    <>
+      <Animated.View style={focusBoxStyle} />
+      {caption && <Animated.Text style={captionStyle}>{caption}</Animated.Text>}
+    </>
+  );
 };
 
-export default FocusBox;
+export default FocusBoxWithCaption;
